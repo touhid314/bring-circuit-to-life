@@ -49,7 +49,7 @@ def crop_bounding_boxes(img_path, bbox_arr, should_plot=False):
 
 
 # model
-from classificaiton_model.model import predict
+from classification_model.model import predict
 
 
 def get_comp_bbox_class_orient(img_path):
