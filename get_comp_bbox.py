@@ -1,3 +1,7 @@
+'''
+for finding bounding box for component and text
+'''
+
 # from git import Repo  # pip install gitpython
 # Repo.clone_from("https://github.com/ultralytics/yolov5", "./git_yolo_repo")
 
@@ -33,7 +37,7 @@ def get_comp_bbox(img_path):
     #             cls = WindowsPath if os.name == 'nt' else PosixPath
     #         self = cls._from_parts(args, init=False)
 
-    #         ## COMMENTED OUT THE FOLLOWING LINE (LINE NUMBER 1084)
+    #         ## COMMENTED OUT THE FOLLOWING LINE (LINE NUMBER 959-961 in python 3.10.0)
     #         # if not self._flavour.is_supported:
     #         #     raise NotImplementedError("cannot instantiate %r on your system"
     #         #                               % (cls.__name__,))
@@ -70,7 +74,6 @@ def get_comp_bbox(img_path):
     subprocess.run(command)
 
     # fetch output
-    from IPython.display import display
     from PIL import Image
 
     img_name = img_path.split('/')[-1]

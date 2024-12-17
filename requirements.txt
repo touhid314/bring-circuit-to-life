@@ -1,0 +1,16 @@
+# python==3.10.0
+PyQt5==5.15.11
+opencv-python==4.10.0.84
+scipy==1.14.1
+scikit-image==0.25.0
+matplotlib==3.10.0
+torch==2.5.1
+torchvision==0.20.1
+pyspice==1.5 
+# after installing pyspice on cmd run this: 
+# pyspice-post-installation --install-ngspice-dll
+# pyspice-post-installation --check-install
+engineering_notation==0.10.0
+ultralytics==8.3.50
+gitpython>=3.1.30
+setuptools>=70.0.0

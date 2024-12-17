@@ -1,3 +1,7 @@
+'''
+contains the main simulation functionality
+'''
+
 import cv2
 import numpy as np
 from skimage.morphology import skeletonize
@@ -30,9 +34,9 @@ import cv2
 import matplotlib.pyplot as plt
 
 
-def segment_high_contrast_portion(image_path):
+def segment_high_contrast_portion(image):
     # Load the image and convert it to grayscale
-    image = Image.open(image_path).convert('L')  # Convert to grayscale
+    # image = Image.open(image_path).convert('L')  # Convert to grayscale
     image_array = np.array(image)  # Convert to NumPy array
 
     # Apply Canny edge detection
@@ -227,22 +231,31 @@ def reduce_nodes(all_connected_nodes: list, node_map, components):
                         already_updated.append([i, j])
 
     
-def get_comp_voltages(components, node_voltages):
-    voltages = []
-    for index, component in enumerate(components):     
-        comp_class = component[0]
-        nodes = component[1]
+def img_preprocess(ckt_img):
+    '''
+    given a PIL ckt image, it returns the skeleton of the ckt
+    '''
+    enhancer = ImageEnhance.Contrast(ckt_img)
+    contrast_factor = 2
+    ckt_img_enhanced = enhancer.enhance(contrast_factor)
+    # ckt_img_enhanced.show()
 
-        t = []
-        t.append(comp_class)
-        
-        volt = abs(node_voltages[nodes[1]] - node_voltages[nodes[0]]) #stores the absolute value of voltage difference across the component
-        t.append(volt)
-
-        voltages.append(t)
+    segmented_ckt, skeleton_ckt = segment_high_contrast_portion(ckt_img)
     
-    return voltages
+    # optionally plot the image
+    # print(segmented_array)  # Print the NumPy array representation of the segmented image
 
+    # Plot the segmented image
+    # plt.imshow(segmented_ckt, cmap='gray')
+    # plt.axis('off')  # Turn off axis labels
+    # plt.show()
+
+    # plt.figure(figsize=(50, 50))
+    # plt.imshow(skeleton_ckt, cmap='gray')
+    # plt.axis('off')
+    # plt.show()
+
+    return skeleton_ckt
 
 #########################################################################################
 from PIL import ImageEnhance
@@ -269,26 +282,16 @@ import math
 from engineering_notation import EngNumber
 
 def simulate_from_img(path: str):
+    '''
+    given the path to an image, it returns 
+    '''
+    # * image preprocessing
     ckt_img = Image.open(path).convert('L')  # Convert to grayscale
-    enhancer = ImageEnhance.Contrast(ckt_img)
-    contrast_factor = 2
-    ckt_img_enhanced = enhancer.enhance(contrast_factor)
-    # ckt_img_enhanced.show()
+    skeleton_ckt = img_preprocess(ckt_img)
 
-    segmented_ckt, skeleton_ckt = segment_high_contrast_portion(path)
-    # print(segmented_array)  # Print the NumPy array representation of the segmented image
-
-    # Plot the segmented image
-    # plt.imshow(segmented_ckt, cmap='gray')
-    # plt.axis('off')  # Turn off axis labels
-    # plt.show()
-
-    # plt.figure(figsize=(50, 50))
-    # plt.imshow(skeleton_ckt, cmap='gray')
-    # plt.axis('off')
-    # plt.show()
     non_electrical_comps = [-1, -2]
 
+    # * get component bounding box
     comp_bbox = get_comp_bbox_class_orient(path)
     electrical_component_bbox = comp_bbox.copy()
 
@@ -296,7 +299,7 @@ def simulate_from_img(path: str):
         if row[0] in non_electrical_comps:
             del electrical_component_bbox[index]
 
-    ############################################################# nodal analysis
+
     ############################################################# finding nodes
     from itertools import chain
 
@@ -440,87 +443,12 @@ def simulate_from_img(path: str):
     reduce_nodes(all_connected_nodes, node_map, components)
     
     ######################################################## make ckt and simulate
+    from make_netlist import make_netlist
+    circuit = make_netlist(components) # from the connection described in the components array, get the ckt netlist
 
-    name_class_map = {'capacitor_unpolarized': 0, 'inductor': 1, 'resistor': 2, 'vdc': 3}
-    name_class_map = list(name_class_map.keys())  
-
-    # CIRCUIT NETLIST
-    '''
-    each component should have the following necessary informations:
-    comp class
-    nodes connected to
-    comp orientation
-    '''
-    circuit = Circuit('Captured Circuit from Image')
-
-    r_count = 0 # will keep count of how many resistors have been added to the ckt
-    c_up_count = 0
-    l_count = 0
-    vdc_count = 0
-
-
-    for component in components:
-        comp_class = component[0]
-        comp_name = name_class_map[comp_class]
-        
-        nodes_connected = component[1]
-        nodes_connected = [circuit.gnd if node == 0 else node for node in nodes_connected]
-        
-        comp_orient = component[2]
-        # print(f'component class: {comp_class}, nodes connected to: {nodes_connected}, orientation: {comp_orient}')
-
-        # TODO: using a default value for all components, gotta find a way to extract value
-        if(comp_name == 'resistor'):
-            # print("adding resistor to ckt")
-            r_count = r_count + 1
-            
-            circuit.R( f"{r_count}", nodes_connected[0], nodes_connected[1], 1 @u_kΩ) 
-
-        elif(comp_name == 'capacitor_unpolarized'):
-            # print("adding capactor_unpolarized to ckt")
-            c_up_count= c_up_count + 1
-
-            circuit.C(f"{c_up_count}", nodes_connected[0], nodes_connected[1], 1@u_uF)
-
-
-        elif(comp_name == 'inductor'):
-            print("adding inductor to ckt")
-            l_count = l_count + 1
-            circuit.L(f"{l_count}", nodes_connected[0], nodes_connected[1], 1@u_mH)
-
-        elif(comp_name == 'vdc'):
-            print("adding vdc to ckt")
-            vdc_count = vdc_count + 1
-            
-            # TODO: Add polarity handling here
-
-            circuit.V(f"{vdc_count}",  nodes_connected[0], nodes_connected[1], 10@u_V)
-
-        else:
-            print(f"component '{comp_name}' not yet implemented")
-
-
-    # print("------ netlist of the circuit: ")
-    print(circuit)
-
-    # analysing
-    simulator = circuit.simulator(temperature=25, nominal_temperature=25)
-    analysis = simulator.operating_point()
-
-
-    for node in analysis.nodes.values():
-        print('Node {}: {:4.1f} V'.format(str(node), float(node)))
-
-    '''
-    node_voltages[2] => voltage at node 2 of the circuit
-    '''
-    node_voltages = [0]
-
-
-    for node in analysis.nodes.values():
-        node_voltages.insert(int(str(node)), float(node))
-    
-    comp_voltages = get_comp_voltages(components, node_voltages)
+    # TODO: this is where LLM comes into play after the circuit object is made
+    from analyse import analyse
+    comp_voltages = analyse(circuit, components)
 
     return electrical_component_bbox, comp_voltages
 

@@ -1,5 +1,8 @@
-from get_comp_bbox import get_comp_bbox
+'''
+finds the class and orientation of a component image
+'''
 
+from get_comp_bbox import get_comp_bbox
 
 import torch
 from PIL import Image

@@ -1,3 +1,7 @@
+'''
+the gui for running the program
+'''
+
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QFileDialog, QVBoxLayout, QPushButton
 from PyQt5.QtGui import QPixmap, QPainter, QColor
