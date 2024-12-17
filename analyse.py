@@ -1,6 +1,6 @@
-def get_comp_voltages(components, node_voltages):
+def get_comp_voltages(COMPONENTS, node_voltages):
     voltages = []
-    for index, component in enumerate(components):     
+    for index, component in enumerate(COMPONENTS):     
         comp_class = component[0]
         nodes = component[1]
 
@@ -15,7 +15,7 @@ def get_comp_voltages(components, node_voltages):
     return voltages
 
 
-def analyse(circuit, components):
+def analyse(circuit, COMPONENTS):
     '''
     given a pyspice circuit object, this function can run various types of simulation and analysis on it
     '''
@@ -39,5 +39,5 @@ def analyse(circuit, components):
     for node in analysis.nodes.values():
         node_voltages.insert(int(str(node)), float(node))
     
-    comp_voltages = get_comp_voltages(components, node_voltages)
+    comp_voltages = get_comp_voltages(COMPONENTS, node_voltages)
     return comp_voltages

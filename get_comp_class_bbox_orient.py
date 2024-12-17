@@ -63,7 +63,7 @@ def get_comp_bbox_class_orient(img_path):
     '''
     bbox_arr = get_comp_bbox(img_path)
     # print(bbox_arr)
-    # # only keeping the bounding boxes of components, ignoring text altogether now
+    # # only keeping the bounding boxes of COMPONENTS, ignoring text altogether now
     # for i,row in enumerate(bbox_arr):
     #     if int(row[0]) == 0: pass
     #     elif int(row[0]) == 1:      

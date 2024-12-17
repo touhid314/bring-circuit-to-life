@@ -52,7 +52,7 @@ def get_model():
     model = MultiOutputEfficientNetV2(num_classes_task1=4, num_classes_task2=4)
     model.to(device)
     # have to use abs path here, otherwise error
-    model_weight_path = r"./classificaiton_model/effnetv2_s_best_val_model.pth"
+    model_weight_path = r"./classification_model/effnetv2_s_best_val_model.pth"
 
     model.load_state_dict(torch.load(model_weight_path, map_location=torch.device(device))['state_dict'])
     

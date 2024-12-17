@@ -2,16 +2,16 @@ from PySpice.Spice.Netlist import Circuit
 from PySpice.Unit import *
 from engineering_notation import EngNumber
 
-def make_netlist(components):
+def make_netlist(COMPONENTS):
     '''
-    given the array components it returns  a pyspice circuit object.
+    given the array COMPONENTS it returns  a pyspice circuit object.
 
     each component should have the following necessary informations:
     comp class
     nodes connected to
     comp orientation
 
-    the expected format of the components array:
+    the expected format of the COMPONENTS array:
 
     '''
 
@@ -26,7 +26,7 @@ def make_netlist(components):
     vdc_count = 0
 
 
-    for component in components:
+    for component in COMPONENTS:
         comp_class = component[0]
         comp_name = name_class_map[comp_class]
         
@@ -36,7 +36,7 @@ def make_netlist(components):
         comp_orient = component[2]
         # print(f'component class: {comp_class}, nodes connected to: {nodes_connected}, orientation: {comp_orient}')
 
-        # TODO: using a default value for all components, gotta find a way to extract value
+        # TODO: using a default value for all COMPONENTS, gotta find a way to extract value
         if(comp_name == 'resistor'):
             # print("adding resistor to ckt")
             r_count = r_count + 1
