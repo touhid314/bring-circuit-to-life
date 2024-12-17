@@ -1,3 +1,3 @@
 #ipynb files are only for learning
 *.ipynb  
-*/__pycache__/
+**/__pycache__/
