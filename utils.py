@@ -33,7 +33,7 @@ def img_preprocess(img, show_enhanced_img:bool = False):
 
     return img_enhanced
 
-def skeletonize_ckt(image: Image.Image) -> np.ndarray:
+def skeletonize_ckt(image: Image.Image, show_skeleton_ckt: bool) -> np.ndarray:
     '''
     arg: 
         image - a PIL image of the ckt in L mode
@@ -78,6 +78,13 @@ def skeletonize_ckt(image: Image.Image) -> np.ndarray:
     # Scale back to 0-255 for visualization
     skeleton = skeleton * 255
     skeleton = (skeleton > 0).astype(np.uint8)
+
+    if show_skeleton_ckt: 
+        import matplotlib.pyplot as plt
+        plt.imshow(skeleton, cmap='gray') 
+        plt.title('Skeletonized Circuit') 
+        plt.axis('off') # Hide axes 
+        plt.show()
 
     return skeleton
 
@@ -232,14 +239,25 @@ def remove_duplicates(array):
     return array
 
 def update_nodes(all_connected_nodes: list, NODE_MAP:np.ndarray, COMPONENTS:np.ndarray) -> None:
+    flattened_list = [element for row in all_connected_nodes for element in row]
+    
     #  modify the componenets matrix
     for i, row in enumerate(COMPONENTS):
         tmp = row[1] # the 2nd element of the row holds the list of nodes comp is connected to
         for j, node in enumerate(tmp):
             # going through each node
-            for row_index, connected_nodes in enumerate(all_connected_nodes):
-                if node in connected_nodes:
-                    COMPONENTS[i][1][j] = row_index
+            if node in flattened_list: 
+                for row_index, connected_nodes in enumerate(all_connected_nodes):
+                    if node in connected_nodes:
+                        COMPONENTS[i][1][j] = row_index
+                        break
+            else:
+                COMPONENTS[i][1][j] = None
+        
+        # now remove the None nodes
+        for x in COMPONENTS[i][1]: 
+            if(x==None): 
+                COMPONENTS[i][1].remove(x) 
 
     remove_duplicates(COMPONENTS) # removes duplicate nodes in the node list, [1, [2,2,1]] => [1, [2,1]]
 
@@ -322,9 +340,8 @@ def reduce_nodes(skeleton_ckt: np.ndarray, comp_bbox: list[list[float]], NODE_MA
             all_connected_nodes.append(connected_nodes)
         
 
-            # register the pixels of the contour with their new node number
-    print(f"all_connected_nodes: {pprint.pprint(all_connected_nodes)}")
-    print("so, all nodes in row 3 of connected nodes will become node 3")
+            # TODO: register the pixels of the contour with their new node number
+
 
     # reducing nodes
     update_nodes(all_connected_nodes, NODE_MAP, COMPONENTS)

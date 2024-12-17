@@ -2,8 +2,8 @@
 contains the main simulation functionality
 '''
 
-import numpy as np
 from PIL import Image
+from pprint import pprint
 
 # * GLOBAL VARIABLES
 NON_ELECTRICAL_COMPS = [-1, -2] #classes for COMPONENTS like crossover, junction etc
@@ -21,17 +21,21 @@ def simulate_from_img(path: str):
     # * skeletonize the ckt
     from utils import img_preprocess, skeletonize_ckt
     ckt_img_enhanced = img_preprocess(ckt_img)
-    skeleton_ckt = skeletonize_ckt(ckt_img_enhanced)
+    skeleton_ckt = skeletonize_ckt(ckt_img_enhanced, show_skeleton_ckt=False)
 
     # * get component bounding box
     from get_comp_class_bbox_orient import get_comp_bbox_class_orient
     comp_bbox = get_comp_bbox_class_orient(path)
-    electrical_component_bbox = comp_bbox.copy()
 
     ## only keeping the electrical COMPONENTS in the ckt skeleton image
+    electrical_component_bbox = comp_bbox.copy()
+
     for index, row in enumerate(electrical_component_bbox):
         if row[0] in NON_ELECTRICAL_COMPS:
-            del electrical_component_bbox[index] 
+            electrical_component_bbox[index] = None
+
+    electrical_component_bbox = [x for x in electrical_component_bbox if x!=None]
+    
 
 
     # * assigning nodes to components
@@ -55,7 +59,7 @@ def simulate_from_img(path: str):
 
 
 if __name__ == "__main__":
-    path = r"ckt1.jpeg"
+    path = r"ckt2.jpeg"
     bbox, volts = simulate_from_img(path)
 
     print("----------simulation result:", bbox, volts)

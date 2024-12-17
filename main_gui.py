@@ -156,7 +156,7 @@ class ImageMouseTrackerApp(QWidget):
                         voltage_rect = QRect(voltage_rect_x, voltage_rect_y, voltage_rect_w, voltage_rect_h)
 
                         # Create voltage text
-                        voltage_text = f"{voltage_value}V"
+                        voltage_text = f"{voltage_value:.2f}V"
 
                         # Update the overlay and voltage display
                         self.image_label.setOverlay(overlay_rect, component_name=comp_name, 
