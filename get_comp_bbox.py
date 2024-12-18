@@ -7,6 +7,7 @@ for finding bounding box for component and text
 
 import os, subprocess, shutil
 from pathlib import Path
+import time 
 
 os.environ['WANDB_DISABLED'] = 'true'
 
@@ -45,7 +46,6 @@ def get_comp_bbox(img_path):
     #         return self 
             
 
-
     # predict
     remove_after_display = True
     # remove detection result after detection is complete
@@ -60,22 +60,35 @@ def get_comp_bbox(img_path):
             # else:
                 # print(f"Skipped file: {item}")
 
-    # Define command
-    command = [
-        "python", "./git_yolo_repo/detect.py",
-        "--weights", model_path,
-        "--source", img_path,
-        "--save-txt",
-        "--name", "my_detection",
-        "--line-thickness", "1"
-    ]
 
-    # Run command
-    subprocess.run(command)
+    # run detection
+    import torch
+    device = 'cuda' if torch.cuda.is_available() else 'cpu' 
+    print(f"Using device: {device}")    
+    
+    # command = [
+    #     "python", "./git_yolo_repo/detect.py",
+    #     "--weights", model_path,
+    #     "--source", img_path,
+    #     "--save-txt",
+    #     "--name", "my_detection",
+    #     "--line-thickness", "1",
+    #     "--device", device,
+    # ]
 
+    # # Run command
+    # subprocess.run(command)
+
+    from git_yolo_repo import detect
+    
+    detect.run(weights=model_path,
+               source=img_path,
+               save_txt=True,
+               name="my_detection",
+               line_thickness=1,
+               device=device)
+    
     # fetch output
-    from PIL import Image
-
     img_name = img_path.split('/')[-1]
     img_name = '.'.join(img_name.split('.')[:-1]) #stripping off the extention in the end
 

@@ -207,7 +207,7 @@ def get_COMPONENTS(skeleton_ckt, comp_bbox):
                     nodes_to_append.append(node_count)
                     
                     # add the node into the node map
-                    print(next_row, next_col) # registering this pixel in the node map
+                    # print(next_row, next_col) # registering this pixel in the node map
                     NODE_MAP[next_row, next_col] = node_count # node_count is basically the node number assigned to a node
 
                     # increment the nodecount 

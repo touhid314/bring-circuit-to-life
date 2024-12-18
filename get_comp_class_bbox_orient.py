@@ -61,7 +61,14 @@ def get_comp_bbox_class_orient(img_path):
     ...
     ]
     '''
+    import time
+
+    start_time = time.time()  # Record the start time
     bbox_arr = get_comp_bbox(img_path)
+
+    end_time = time.time()  # Record the end time
+    print(f">>>>>>>>>> Execution time for yolo: {end_time - start_time:.4f} seconds")
+
     # print(bbox_arr)
     # # only keeping the bounding boxes of COMPONENTS, ignoring text altogether now
     # for i,row in enumerate(bbox_arr):
@@ -72,8 +79,10 @@ def get_comp_bbox_class_orient(img_path):
     #         bbox_arr[i][0] = -2 # -2 class means it's wire overlap
     
     # print(bbox_arr)
+
     cropped_images = crop_bounding_boxes(img_path, bbox_arr, should_plot=False)
 
+    start_time = time.time()
     for index, row in enumerate(cropped_images):
         img = row[1]
         if bbox_arr[index][0] == 0:
@@ -89,6 +98,9 @@ def get_comp_bbox_class_orient(img_path):
             bbox_arr[index][0] = -2 # -2 class means it's wire overlap
         else:
             raise Exception("invalid class number found in bbox_arr")
+
+    end_time = time.time()  # Record the end time
+    print(f">>>>>>>>>> Execution time for classfier model: {end_time - start_time:.4f} seconds")
 
     return bbox_arr
 

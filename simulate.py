@@ -15,17 +15,32 @@ def simulate_from_img(path: str):
     given the path to an image, it returns ??
     '''
     global NON_ELECTRICAL_COMPS
+    import time
+    ekdom_start = time.time()
+
+    start_time = time.time()  # Record the start time
 
     ckt_img = Image.open(path).convert('L')  # Convert to grayscale
+    end_time = time.time()  # Record the end time
+    print(f">>>>>> Execution time for image open : {end_time - start_time:.4f} seconds")
 
     # * skeletonize the ckt
-    from utils import img_preprocess, skeletonize_ckt
+    start_time = time.time()  # Record the start time
+
+    from my_utils import img_preprocess, skeletonize_ckt
     ckt_img_enhanced = img_preprocess(ckt_img)
     skeleton_ckt = skeletonize_ckt(ckt_img_enhanced, show_skeleton_ckt=False)
+    
+    end_time = time.time()  # Record the end time
+    print(f">>>>>> Execution time for skeletonize : {end_time - start_time:.4f} seconds")
 
     # * get component bounding box
+    start_time = time.time()  # Record the start time
     from get_comp_class_bbox_orient import get_comp_bbox_class_orient
     comp_bbox = get_comp_bbox_class_orient(path)
+
+    end_time = time.time()  # Record the end time
+    print(f">>>>>> Execution time for all models: {end_time - start_time:.4f} seconds")
 
     ## only keeping the electrical COMPONENTS in the ckt skeleton image
     electrical_component_bbox = comp_bbox.copy()
@@ -39,21 +54,34 @@ def simulate_from_img(path: str):
 
 
     # * assigning nodes to components
-    from utils import get_COMPONENTS
+    start_time = time.time()  # Record the start time
+
+    from my_utils import get_COMPONENTS
     COMPONENTS, NODE_MAP = get_COMPONENTS(skeleton_ckt, comp_bbox)
 
 
     # * finding connection between components and reducing node counts
-    from utils import reduce_nodes
+    from my_utils import reduce_nodes
     reduce_nodes(skeleton_ckt, comp_bbox, NODE_MAP, COMPONENTS)
     
+    end_time = time.time()  # Record the end time
+    print(f">>>>>> Execution time for nodal algos: {end_time - start_time:.4f} seconds")
+
     # * make ckt and simulate
+    start_time = time.time()  # Record the start time
+
     from make_netlist import make_netlist
     circuit = make_netlist(COMPONENTS) # from the connection described in the COMPONENTS array, get the ckt netlist
 
     # TODO: this is where LLM comes into play after the circuit object is made
     from analyse import analyse
     comp_voltages = analyse(circuit, COMPONENTS)
+
+    end_time = time.time()  # Record the end time
+    print(f">>>>>> Execution time for simulation: {end_time - start_time:.4f} seconds")
+
+    ekdom_sesh = time.time()
+    print(f">>>>>> total execution time: {ekdom_sesh - ekdom_start:.4f} seconds")
 
     return electrical_component_bbox, comp_voltages
 
