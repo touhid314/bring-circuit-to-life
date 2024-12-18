@@ -1,3 +1,6 @@
+from PySpice.Spice.Netlist import Circuit
+import numpy
+
 def get_comp_voltages(COMPONENTS, node_voltages):
     voltages = []
     for index, component in enumerate(COMPONENTS):     
@@ -15,9 +18,15 @@ def get_comp_voltages(COMPONENTS, node_voltages):
     return voltages
 
 
-def analyse(circuit, COMPONENTS):
+def analyse(circuit: Circuit, COMPONENTS:numpy.ndarray):
     '''
-    given a pyspice circuit object, this function can run various types of simulation and analysis on it
+    given a pyspice circuit object, this function can run various types of simulation and analysis on it.
+    
+    args:
+        circuit - 
+
+    returns: 
+        ??
     '''
     
     # create pyspsice simulator object

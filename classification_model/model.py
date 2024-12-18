@@ -45,14 +45,57 @@ class MultiOutputEfficientNetV2(nn.Module):
         return output_task1, output_task2
 
 
+class MultiOutputResNet(nn.Module):
+    def __init__(self, num_classes_task1, num_classes_task2):
+        super(MultiOutputResNet, self).__init__()
+        
+        # Load a pre-trained ResNet model
+        self.resnet = models.resnet18(pretrained=True)
+        # Modify the first convolutional layer to accept grayscale (1 channel) images
+        self.resnet.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        
+        # Remove the final fully connected layer
+        num_features = self.resnet.fc.in_features
+        self.resnet.fc = nn.Identity()  # We’ll add separate heads
+        
+        # Task-specific output layers
+        self.task1_head = nn.Sequential(
+            nn.Linear(num_features, 512),
+            nn.ReLU(),
+            nn.Linear(512, num_classes_task1)
+        )
+        
+        self.task2_head = nn.Sequential(
+            nn.Linear(num_features, 512),
+            nn.ReLU(),
+            nn.Linear(512, num_classes_task2)
+        )
+        
+    def forward(self, x):
+        # Forward through the shared ResNet layers
+        x = self.resnet(x)
+        
+        # Separate outputs for each task
+        output_task1 = self.task1_head(x)
+        output_task2 = self.task2_head(x)
+        
+        return output_task1, output_task2
 
-def get_model():
+
+def get_model(model_name:str):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    model = MultiOutputEfficientNetV2(num_classes_task1=4, num_classes_task2=4)
-    model.to(device)
+    if(model_name == "effnetv2"):
+        model = MultiOutputEfficientNetV2(num_classes_task1=4, num_classes_task2=4)
+        model_weight_path = r"./classification_model/effnetv2_s_best_val_model.pth"
+
+    elif(model_name == "resnet18"):
+        model = MultiOutputResNet(num_classes_task1=4, num_classes_task2=4)
+        model_weight_path = r"./classification_model/resnet18_best_val_model.pth"
+    else:
+        raise ValueError("Invalid model name specified. Couldn't load model")
+    
     # have to use abs path here, otherwise error
-    model_weight_path = r"./classification_model/effnetv2_s_best_val_model.pth"
 
     model.load_state_dict(torch.load(model_weight_path, map_location=torch.device(device))['state_dict'])
     
@@ -83,7 +126,7 @@ def predict(img, device='cpu'):
     '''
     img = img.convert("L") # converting img to grayscale
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = get_model()
+    model = get_model('resnet18')
     model.to(device)  # Move model to device (GPU or CPU)
     model.eval()  # Set model to evaluation mode (disables dropout, etc.)
     

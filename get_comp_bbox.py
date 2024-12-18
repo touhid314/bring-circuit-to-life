@@ -3,7 +3,7 @@ for finding bounding box for component and text
 '''
 
 # from git import Repo  # pip install gitpython
-# Repo.clone_from("https://github.com/ultralytics/yolov5", "./git_yolo_repo")
+# Repo.clone_from("https://github.com/ultralytics/yolov5", "./yolo_model")
 
 import os, subprocess, shutil
 from pathlib import Path
@@ -26,8 +26,8 @@ def get_comp_bbox(img_path):
 
     img_path = img_path.replace("\\", "/") # converting windows style image path to linux  style
 
-    model_path = "./git_yolo_repo/runs/train/exp/weights/best.pt"
-    parent_dir = Path(r".\git_yolo_repo\runs\detect").resolve() # all folders within it are deleted in the beginning
+    model_path = "./yolo_model/runs/train/exp/weights/best.pt"
+    parent_dir = Path(r".\yolo_model\runs\detect").resolve() # all folders within it are deleted in the beginning
 
 
     # had to change the pathlib.py file in lib at dir "C:\Users\TestUser\AppData\Local\Programs\Python\Python39\Lib" 
@@ -65,21 +65,8 @@ def get_comp_bbox(img_path):
     import torch
     device = 'cuda' if torch.cuda.is_available() else 'cpu' 
     print(f"Using device: {device}")    
-    
-    # command = [
-    #     "python", "./git_yolo_repo/detect.py",
-    #     "--weights", model_path,
-    #     "--source", img_path,
-    #     "--save-txt",
-    #     "--name", "my_detection",
-    #     "--line-thickness", "1",
-    #     "--device", device,
-    # ]
 
-    # # Run command
-    # subprocess.run(command)
-
-    from git_yolo_repo import detect
+    from yolo_model import detect
     
     detect.run(weights=model_path,
                source=img_path,
@@ -94,7 +81,7 @@ def get_comp_bbox(img_path):
 
     # fetch label txt file into an array
     # det_result_arr - an array containing the output txt file holding the object detection result into an array of float format
-    with open(f"./git_yolo_repo/runs/detect/my_detection/labels/{img_name}.txt", "r") as file:
+    with open(f"./yolo_model/runs/detect/my_detection/labels/{img_name}.txt", "r") as file:
         det_result = file.read()
 
     det_result_arr = det_result.splitlines()
