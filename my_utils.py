@@ -33,6 +33,16 @@ def img_preprocess(img, show_enhanced_img:bool = False):
 
     return img_enhanced
 
+import multiprocessing
+import matplotlib.pyplot as plt
+
+def show_skeleton(skeleton):
+    plt.imshow(skeleton, cmap='gray')
+    plt.title('Skeletonized Circuit')
+    plt.axis('off')  # Hide axes
+    plt.show()  # Blocking, but in a separate process
+
+
 def skeletonize_ckt(image: Image.Image, show_skeleton_ckt: bool) -> np.ndarray:
     '''
     arg: 
@@ -49,7 +59,7 @@ def skeletonize_ckt(image: Image.Image, show_skeleton_ckt: bool) -> np.ndarray:
     edges = cv2.Canny(image_array, 100, 200)  # Adjust thresholds as needed
 
     # Apply dilation and closing to fill small gaps
-    kernel = np.ones((7, 7), np.uint8)  # Adjust the kernel size if needed
+    kernel = np.ones((5, 5), np.uint8)  # Adjust the kernel size if needed
     edges_dilated = cv2.dilate(edges, kernel, iterations=1)
     edges_closed = cv2.morphologyEx(edges_dilated, cv2.MORPH_CLOSE, kernel)
 
@@ -80,11 +90,16 @@ def skeletonize_ckt(image: Image.Image, show_skeleton_ckt: bool) -> np.ndarray:
     skeleton = (skeleton > 0).astype(np.uint8)
 
     if show_skeleton_ckt: 
-        import matplotlib.pyplot as plt
-        plt.imshow(skeleton, cmap='gray') 
-        plt.title('Skeletonized Circuit') 
-        plt.axis('off') # Hide axes 
-        plt.show()
+        # import matplotlib.pyplot as plt
+        
+        # plt.imshow(skeleton, cmap='gray') 
+        # plt.title('Skeletonized Circuit') 
+        # plt.axis('off') # Hide axes 
+        
+        # plt.show(block=False)
+        # Start a thread for showing the skeleton
+        process = multiprocessing.Process(target=show_skeleton, args=(skeleton,))
+        process.start()
 
     return skeleton
 
@@ -154,6 +169,7 @@ def get_COMPONENTS(skeleton_ckt, comp_bbox):
 
     # define all data structrues
     COMPONENTS = []
+    all_start_points = []
 
 
     NODE_MAP = np.full(skeleton_ckt.shape, np.nan)
@@ -209,6 +225,7 @@ def get_COMPONENTS(skeleton_ckt, comp_bbox):
                     # add the node into the node map
                     # print(next_row, next_col) # registering this pixel in the node map
                     NODE_MAP[next_row, next_col] = node_count # node_count is basically the node number assigned to a node
+                    all_start_points.append([next_row, next_col])
 
                     # increment the nodecount 
                     node_count = node_count + 1
@@ -221,7 +238,7 @@ def get_COMPONENTS(skeleton_ckt, comp_bbox):
     # for row in COMPONENTS:
     #     print(row)
 
-    return COMPONENTS, NODE_MAP
+    return COMPONENTS, NODE_MAP, all_start_points
 
 
 
@@ -254,25 +271,95 @@ def update_nodes(all_connected_nodes: list, NODE_MAP:np.ndarray, COMPONENTS:np.n
             else:
                 COMPONENTS[i][1][j] = None
         
-        # now remove the None nodes
-        for x in COMPONENTS[i][1]: 
-            if(x==None): 
-                COMPONENTS[i][1].remove(x) 
+        # # now remove the None nodes
+        # for x in COMPONENTS[i][1]: 
+        #     if(x==None): 
+        #         COMPONENTS[i][1].remove(x) 
+        COMPONENTS[i][1] = [x for x in COMPONENTS[i][1] if x is not None]
+
 
     remove_duplicates(COMPONENTS) # removes duplicate nodes in the node list, [1, [2,2,1]] => [1, [2,1]]
 
-    # modify the NODE_MAP matrix
+    # # modify the NODE_MAP matrix
 
-    already_updated = []    
-    for i in range(NODE_MAP.shape[0]):
-        for j in range(NODE_MAP.shape[1]):
-            for row_index, connected_nodes in enumerate(all_connected_nodes):
-                if ([i,j] not in already_updated) and (NODE_MAP[i, j] in connected_nodes):
-                        NODE_MAP[i, j] = row_index
-                        already_updated.append([i, j])
+    # already_updated = []    
+    # for i in range(NODE_MAP.shape[0]):
+    #     for j in range(NODE_MAP.shape[1]):
+    #         for row_index, connected_nodes in enumerate(all_connected_nodes):
+    #             if ([i,j] not in already_updated) and (NODE_MAP[i, j] in connected_nodes):
+    #                     NODE_MAP[i, j] = row_index
+    #                     already_updated.append([i, j])
+
+import numpy as np
+import math
+
+connected_nodes = []
+
+def viral_spread(x: int, y: int, NODE_MAP: np.ndarray, binary_img: np.ndarray, all_connected_nodes: list):
+    """
+    Spreads the value of the main node to neighboring points based on specific conditions.
+
+    Parameters:
+        x (int): X-coordinate of the current node.
+        y (int): Y-coordinate of the current node.
+        NODE_MAP: 
+        binary_img: 
+        all_connected_nodes:
+
+    returns:
+        nothing, updates the NODE_MAP, all_connected_ndoes in place
+    
+    """
+
+
+    viral_node_num = NODE_MAP[x, y]
+    viral_pixel_val = binary_img[x, y]
+
+    global connected_nodes
+    if len(connected_nodes) == 0: connected_nodes.append(viral_node_num)
+
+    if (viral_pixel_val != 0 and viral_node_num >= 0): # attack only if the viral point satisfies these conditions, otherwise do nothing
+        for i in [-1, 0, 1]: # generating attack point coordinates
+            for j in [-1, 0, 1]:
+                if i == 0 and j == 0:
+                    continue  # Skip the current node itself        
+                
+                attack_point_x = x + i
+                attack_point_y = y + j
+
+                attacked_pixel_val = binary_img[attack_point_x, attack_point_y]
+                attacked_node_num = NODE_MAP[attack_point_x, attack_point_y]
+
+                if (attacked_node_num == -1):
+                    # attacked_pixel_val == 0 and attacked_node_num == -1
+                    # attacked_pixel_val == 1 and attacked_node_num == -1
+                    continue
+                elif (attacked_pixel_val == 0):
+                    # attacked_pixel_val == 0 and attacked_node_num == nan
+                    # attacked_pixel_val == 0 and attacked_node_num == [0, inf)
+                    NODE_MAP[attack_point_x, attack_point_y] = -1
+
+                elif (attacked_pixel_val == 1 and math.isnan(attacked_node_num)):
+                    # attacked_pixel_val == 1 and attacked_node_num == nan
+                    NODE_MAP[attack_point_x, attack_point_y] = viral_node_num
+                    viral_spread(attack_point_x, attack_point_y, NODE_MAP, binary_img, all_connected_nodes)
+                
+                elif (attacked_pixel_val == 1 and attacked_node_num >= 0):
+                    # attacked_pixel_val == 1 and attacked_node_num == [0, inf)
+                    if (viral_node_num < attacked_node_num): 
+                        NODE_MAP[attack_point_x, attack_point_y] = viral_node_num
+                        # this means a connection has been found
+                        connected_nodes.append(attacked_node_num)
+
+                        viral_spread(attack_point_x, attack_point_y, NODE_MAP, binary_img, all_connected_nodes)
+
+                    else:
+                        continue
+
+
 
 ## main algo
-def reduce_nodes(skeleton_ckt: np.ndarray, comp_bbox: list[list[float]], NODE_MAP: np.ndarray, COMPONENTS: np.ndarray):
+def reduce_nodes(skeleton_ckt: np.ndarray, comp_bbox: list[list[float]], NODE_MAP: np.ndarray, COMPONENTS: np.ndarray, all_start_points: list):
     '''
     algorithm to find the connections between components and hence reduce the node counts in terms of connection.
     
@@ -314,34 +401,50 @@ def reduce_nodes(skeleton_ckt: np.ndarray, comp_bbox: list[list[float]], NODE_MA
             skeleton_ckt_stripped[y1:y2, x1:x2] = 0
 
     # plt.imshow(skeleton_ckt_stripped) 
-    # find all contours on the strippped skeleton ckt
-    all_contours, _  = cv2.findContours(skeleton_ckt_stripped, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    # # find all contours on the strippped skeleton ckt
+    # all_contours, _  = cv2.findContours(skeleton_ckt_stripped, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
 
-    import math, pprint
+    # import math, pprint
 
+    # all_connected_nodes = []
+    # node_num = 0
+
+    # for contour in all_contours:
+    #     connected_nodes = []
+
+    #     for pixel in contour:
+    #         pixel=pixel[0]
+    #         pixel_node = NODE_MAP[pixel[1], pixel[0]] #what node does this pixel belong to
+            
+    #         if(not math.isnan(pixel_node)):
+    #             # if inside this block, it means, the pixel belongs to a node, so the whole contour belongs to that node
+    #             # print(pixel_node)
+    #             if (pixel_node not in connected_nodes):
+    #                 # if the node has not been added into the list, then add
+    #                 connected_nodes.append(int(pixel_node.item()))
+        
+    #     if(len(connected_nodes) > 1):
+    #         # if a contour does not connect to any node or only connects to one node reject that node
+    #         all_connected_nodes.append(connected_nodes)
+
+    #         node_num = node_num + 1
+    #         # TODO: register the pixels of the contour with their new node number
+            
+
+    # modified code
+    global connected_nodes
     all_connected_nodes = []
 
-    for contour in all_contours:
+    import sys
+    sys.setrecursionlimit(50000)
+
+
+    for start_point in all_start_points:
         connected_nodes = []
 
-        for pixel in contour:
-            pixel=pixel[0]
-            pixel_node = NODE_MAP[pixel[1], pixel[0]] #what node does this pixel belong to
-            
-            if(not math.isnan(pixel_node)):
-                # the pixel belongs to a node, so the whole contour belongs to that node
-                # print(pixel_node)
-                if (pixel_node not in connected_nodes):
-                    # if the node has not been added into the list, then add
-                    connected_nodes.append(int(pixel_node.item()))
+        viral_spread(start_point[0], start_point[1], NODE_MAP, skeleton_ckt_stripped, all_connected_nodes)
         
-        if(len(connected_nodes) > 1):
-            # if a contour does not connect to any node or only connects to one node reject that node
-            all_connected_nodes.append(connected_nodes)
-        
-
-            # TODO: register the pixels of the contour with their new node number
-
+        if (len(connected_nodes)>1): all_connected_nodes.append(connected_nodes)
 
     # reducing nodes
     update_nodes(all_connected_nodes, NODE_MAP, COMPONENTS)

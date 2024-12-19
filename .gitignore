@@ -1,3 +1,10 @@
 #ipynb files are only for learning
-*.ipynb  
+*.ipynb 
+
+# cache files
 **/__pycache__/
+
+# image files
+*.jpg
+*.jpeg
+*.png

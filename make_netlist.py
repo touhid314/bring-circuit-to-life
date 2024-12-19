@@ -33,6 +33,9 @@ def make_netlist(COMPONENTS):
         nodes_connected = component[1]
         nodes_connected = [circuit.gnd if node == 0 else node for node in nodes_connected]
         
+        if len(nodes_connected) != 2: 
+            raise Exception("components expected 2 nodes to be connected to, found more than or less than 2")
+             
         comp_orient = component[2]
         # print(f'component class: {comp_class}, nodes connected to: {nodes_connected}, orientation: {comp_orient}')
 

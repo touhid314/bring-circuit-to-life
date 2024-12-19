@@ -57,12 +57,12 @@ def simulate_from_img(path: str):
     start_time = time.time()  # Record the start time
 
     from my_utils import get_COMPONENTS
-    COMPONENTS, NODE_MAP = get_COMPONENTS(skeleton_ckt, comp_bbox)
+    COMPONENTS, NODE_MAP, all_start_points = get_COMPONENTS(skeleton_ckt, comp_bbox)
 
 
     # * finding connection between components and reducing node counts
     from my_utils import reduce_nodes
-    reduce_nodes(skeleton_ckt, comp_bbox, NODE_MAP, COMPONENTS)
+    reduce_nodes(skeleton_ckt, comp_bbox, NODE_MAP, COMPONENTS, all_start_points)
     
     end_time = time.time()  # Record the end time
     print(f">>>>>> Execution time for nodal algos: {end_time - start_time:.4f} seconds")
@@ -87,7 +87,9 @@ def simulate_from_img(path: str):
 
 
 if __name__ == "__main__":
-    path = r"ckt2.jpeg"
+    # path = r"ckt5.jpg"
+    path = r"C:\Users\Touhid2\Desktop\50_jpg.rf.dfa9222529f42fb211b7fd65119dddf3.jpg"
+    # path = r"ckt1.jpeg"
     bbox, volts = simulate_from_img(path)
 
     print("----------simulation result:", bbox, volts)
