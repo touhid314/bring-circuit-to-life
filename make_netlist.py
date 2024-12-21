@@ -1,6 +1,7 @@
 from PySpice.Spice.Netlist import Circuit
 from PySpice.Unit import *
 from engineering_notation import EngNumber
+from pprint import pprint
 
 def make_netlist(COMPONENTS):
     '''
@@ -34,6 +35,7 @@ def make_netlist(COMPONENTS):
         nodes_connected = [circuit.gnd if node == 0 else node for node in nodes_connected]
         
         if len(nodes_connected) != 2: 
+            pprint(COMPONENTS)
             raise Exception("components expected 2 nodes to be connected to, found more than or less than 2")
              
         comp_orient = component[2]

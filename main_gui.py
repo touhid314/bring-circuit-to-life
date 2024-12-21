@@ -4,13 +4,14 @@ the gui for running the program
 
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QFileDialog, QVBoxLayout, QPushButton
-from PyQt5.QtGui import QPixmap, QPainter, QColor
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QImage
 from PyQt5.QtCore import Qt, QRect
 from PyQt5 import QtCore
 
 from simulate import simulate_from_img
 
-class ImageLabel(QLabel):
+
+class ImageLabel(QLabel): 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.original_pixmap = None
@@ -91,10 +92,12 @@ class ImageMouseTrackerApp(QWidget):
         self.original_pixmap = None
         self.scaled_pixmap_rect = QRect()
 
+        
         # Component mapping and bounding boxes
         self.component_mapping = {0: 'capacitor_unpolarized', 1: 'inductor', 2: 'resistor', 3: 'vdc'}
         self.elec_comp_bbox = []
         self.comp_voltages = []
+        
 
     def load_image(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Open Image File", "", "Images (*.png *.jpg *.jpeg *.bmp)")
@@ -114,6 +117,8 @@ class ImageMouseTrackerApp(QWidget):
         self.elec_comp_bbox, self.comp_voltages = simulate_from_img(file_path)
 
         self.coord_label.setText("BROUGHT LIFE! HOVER TO FIND!")
+
+
 
     def mouseMoveEvent(self, event):
         if self.image_label.pixmap():

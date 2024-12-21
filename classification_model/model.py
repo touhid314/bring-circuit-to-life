@@ -126,7 +126,7 @@ def predict(img, device='cpu'):
     '''
     img = img.convert("L") # converting img to grayscale
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = get_model('resnet18')
+    model = get_model('effnetv2')
     model.to(device)  # Move model to device (GPU or CPU)
     model.eval()  # Set model to evaluation mode (disables dropout, etc.)
     

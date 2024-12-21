@@ -28,8 +28,9 @@ def simulate_from_img(path: str):
     start_time = time.time()  # Record the start time
 
     from my_utils import img_preprocess, skeletonize_ckt
-    ckt_img_enhanced = img_preprocess(ckt_img)
-    skeleton_ckt = skeletonize_ckt(ckt_img_enhanced, show_skeleton_ckt=False)
+    ckt_img_enhanced = img_preprocess(ckt_img, contrast_factor=3, sharpness_factor=1)
+    skeleton_ckt = skeletonize_ckt(ckt_img_enhanced, kernel_size=5,show_skeleton_ckt=True)
+
     
     end_time = time.time()  # Record the end time
     print(f">>>>>> Execution time for skeletonize : {end_time - start_time:.4f} seconds")
@@ -88,8 +89,10 @@ def simulate_from_img(path: str):
 
 if __name__ == "__main__":
     # path = r"ckt5.jpg"
-    path = r"C:\Users\Touhid2\Desktop\50_jpg.rf.dfa9222529f42fb211b7fd65119dddf3.jpg"
+    # path = r"C:\Users\Touhid2\Desktop\50_jpg.rf.dfa9222529f42fb211b7fd65119dddf3.jpg"
     # path = r"ckt1.jpeg"
+    path = r"H:\NOTHING\#Projects\bring_ckt_to_life_project\code\test_imgs\20220729_111338_jpg.rf.2b39886379e2c93aa69a30966e0126e3.jpg"
+
     bbox, volts = simulate_from_img(path)
 
     print("----------simulation result:", bbox, volts)

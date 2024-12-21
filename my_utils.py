@@ -7,7 +7,7 @@ from PIL import Image
 
 
 # algorithms for image preprocessing and skeletonize image
-def img_preprocess(img, show_enhanced_img:bool = False):
+def img_preprocess(img, contrast_factor, sharpness_factor, show_enhanced_img:bool = False):
     '''
     args:
         img - a PIL ckt image
@@ -17,8 +17,8 @@ def img_preprocess(img, show_enhanced_img:bool = False):
     '''
     from PIL import ImageEnhance
 
-    contrast_factor = 2
-    sharpness_factor = 1
+    # contrast_factor = 2
+    # sharpness_factor = 1
 
 
     # increase contrast
@@ -33,17 +33,8 @@ def img_preprocess(img, show_enhanced_img:bool = False):
 
     return img_enhanced
 
-import multiprocessing
-import matplotlib.pyplot as plt
 
-def show_skeleton(skeleton):
-    plt.imshow(skeleton, cmap='gray')
-    plt.title('Skeletonized Circuit')
-    plt.axis('off')  # Hide axes
-    plt.show()  # Blocking, but in a separate process
-
-
-def skeletonize_ckt(image: Image.Image, show_skeleton_ckt: bool) -> np.ndarray:
+def skeletonize_ckt(image: Image.Image, kernel_size:int, show_skeleton_ckt: bool) -> np.ndarray:
     '''
     arg: 
         image - a PIL image of the ckt in L mode
@@ -59,7 +50,7 @@ def skeletonize_ckt(image: Image.Image, show_skeleton_ckt: bool) -> np.ndarray:
     edges = cv2.Canny(image_array, 100, 200)  # Adjust thresholds as needed
 
     # Apply dilation and closing to fill small gaps
-    kernel = np.ones((5, 5), np.uint8)  # Adjust the kernel size if needed
+    kernel = np.ones((kernel_size, kernel_size), np.uint8)  # Adjust the kernel size if needed
     edges_dilated = cv2.dilate(edges, kernel, iterations=1)
     edges_closed = cv2.morphologyEx(edges_dilated, cv2.MORPH_CLOSE, kernel)
 
@@ -96,10 +87,8 @@ def skeletonize_ckt(image: Image.Image, show_skeleton_ckt: bool) -> np.ndarray:
         # plt.title('Skeletonized Circuit') 
         # plt.axis('off') # Hide axes 
         
-        # plt.show(block=False)
-        # Start a thread for showing the skeleton
-        process = multiprocessing.Process(target=show_skeleton, args=(skeleton,))
-        process.start()
+        pil_image = Image.fromarray(skeleton * 255) 
+        pil_image.show()
 
     return skeleton
 
@@ -249,11 +238,60 @@ def get_COMPONENTS(skeleton_ckt, comp_bbox):
 ## necessary functions
 def remove_duplicates(array):
     for row in array:
+        # if the duplicate 
+        
         # Convert the second element of each row to a set to remove duplicates, then back to a list
         row[1] = list(set(row[1]))
         # Optionally sort the list to maintain order
         row[1].sort(reverse=True)  # Use reverse=False for ascending order if needed
     return array
+
+
+
+def modify_list(list1, list2):
+    """
+    Modifies list1 by removing subsets from the second element of its rows, 
+    if the subsets are present as complete rows in list2.
+    Also updates list2 by deleting the rows that caused modifications in list1.
+
+    Args:
+        list1 (list): The first 2D array-like list to be modified.
+        list2 (list): The second 2D array-like list to compare against.
+
+    Returns:
+        tuple: Modified version of list1 and list2.
+    """
+    # Convert list2 elements to sets for easier comparison
+    list2_sets = [set(map(float, row)) for row in list2]
+
+    # Rows to remove from list2
+    rows_to_remove = []
+
+    # Process list1
+    for row in list1:
+        second_element = row[1]  # The list we need to modify
+        to_remove = []  # Pairs to remove
+
+        # Check all pairs in the second element
+        for i in range(len(second_element) - 1):
+            for j in range(i + 1, len(second_element)):
+                pair = set(second_element[i:j + 1])  # Form a subset
+                if pair in list2_sets:  # Check if it's a row in list2
+                    to_remove.extend(pair)
+                    # Track the row index in list2
+                    rows_to_remove.append(list2_sets.index(pair))
+
+        # Remove the identified elements from list1
+        row[1] = [val for val in second_element if val not in to_remove]
+
+    # Remove the corresponding rows from list2
+    rows_to_remove = sorted(set(rows_to_remove), reverse=True)  # Remove duplicates and reverse for safe deletion
+    for idx in rows_to_remove:
+        list2.pop(idx)
+
+    return list1, list2
+
+
 
 def update_nodes(all_connected_nodes: list, NODE_MAP:np.ndarray, COMPONENTS:np.ndarray) -> None:
     flattened_list = [element for row in all_connected_nodes for element in row]
@@ -312,8 +350,8 @@ def viral_spread(x: int, y: int, NODE_MAP: np.ndarray, binary_img: np.ndarray, a
     """
 
 
-    viral_node_num = NODE_MAP[x, y]
-    viral_pixel_val = binary_img[x, y]
+    viral_node_num = NODE_MAP[x, y].item()
+    viral_pixel_val = binary_img[x, y].item()
 
     global connected_nodes
     if len(connected_nodes) == 0: connected_nodes.append(viral_node_num)
@@ -327,8 +365,8 @@ def viral_spread(x: int, y: int, NODE_MAP: np.ndarray, binary_img: np.ndarray, a
                 attack_point_x = x + i
                 attack_point_y = y + j
 
-                attacked_pixel_val = binary_img[attack_point_x, attack_point_y]
-                attacked_node_num = NODE_MAP[attack_point_x, attack_point_y]
+                attacked_pixel_val = binary_img[attack_point_x, attack_point_y].item()
+                attacked_node_num = NODE_MAP[attack_point_x, attack_point_y].item()
 
                 if (attacked_node_num == -1):
                     # attacked_pixel_val == 0 and attacked_node_num == -1
@@ -438,6 +476,8 @@ def reduce_nodes(skeleton_ckt: np.ndarray, comp_bbox: list[list[float]], NODE_MA
     import sys
     sys.setrecursionlimit(50000)
 
+    pil_image = Image.fromarray(skeleton_ckt_stripped * 255)  # Convert binary (0, 1) to grayscale (0, 255)
+    pil_image.show()
 
     for start_point in all_start_points:
         connected_nodes = []
@@ -447,6 +487,7 @@ def reduce_nodes(skeleton_ckt: np.ndarray, comp_bbox: list[list[float]], NODE_MA
         if (len(connected_nodes)>1): all_connected_nodes.append(connected_nodes)
 
     # reducing nodes
+    modify_list(COMPONENTS, all_connected_nodes)
     update_nodes(all_connected_nodes, NODE_MAP, COMPONENTS)
 
 
@@ -454,37 +495,6 @@ def reduce_nodes(skeleton_ckt: np.ndarray, comp_bbox: list[list[float]], NODE_MA
 
 
 # trash functions
-def bresenham_line(x1: int, y1: int, x2: int, y2: int):
-    """
-    Generate the coordinates of pixels in a straight line between two points.
-    
-    Args:
-    - x1, y1: Coordinates of the first pixel.
-    - x2, y2: Coordinates of the second pixel.
-    
-    Returns:
-    - A list of (x, y) tuples representing the coordinates of pixels on the line.
-    """
-    pixels = []
-    dx = abs(x2 - x1)
-    dy = abs(y2 - y1)
-    sx = 1 if x1 < x2 else -1
-    sy = 1 if y1 < y2 else -1
-    err = dx - dy
-
-    while True:
-        pixels.append((x1, y1))  # Add the current pixel to the list
-        if x1 == x2 and y1 == y2:  # If reached the endpoint
-            break
-        err2 = err * 2
-        if err2 > -dy:  # Move in x direction
-            err -= dy
-            x1 += sx
-        if err2 < dx:  # Move in y direction
-            err += dx
-            y1 += sy
-            
-    return pixels
 
 def is_same_wire(pix1: tuple, pix2: tuple, ckt_img) -> bool:
     '''
