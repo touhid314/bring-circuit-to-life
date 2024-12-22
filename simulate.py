@@ -8,6 +8,70 @@ from pprint import pprint
 # * GLOBAL VARIABLES
 NON_ELECTRICAL_COMPS = [-1, -2] #classes for COMPONENTS like crossover, junction etc
 
+from PIL import Image
+import numpy as np
+
+def process_and_show_node_map(node_map: np.ndarray, ckt_img: Image.Image):
+    """
+    Processes a 2D numpy array by replacing NaN with 0,
+    assigns a specific color to non-negative values,
+    applies a dilation kernel to make nodes fatter,
+    overlays the node map on the circuit image,
+    and displays the result as a combined image.
+
+    Parameters:
+        node_map (numpy.ndarray): Input 2D numpy array.
+        ckt_img (PIL.Image.Image): Circuit image to overlay the node map onto.
+    """
+    from PIL import Image, ImageDraw, ImageFont
+    import numpy as np
+    from scipy.ndimage import binary_dilation
+
+    # Create a copy to avoid modifying the original array
+    processed_map = np.nan_to_num(node_map, nan=-1)  # Replace NaN with -1
+
+    # Create an RGB map
+    height, width = processed_map.shape
+    colored_map = np.zeros((height, width, 3), dtype=np.uint8)
+
+    # Assign green color to non-negative values
+    non_negative_mask = processed_map >= 0  # Non-negative values
+    dilation_kernel_size = 15
+    dilated_mask = binary_dilation(non_negative_mask, structure=np.ones((dilation_kernel_size, dilation_kernel_size)))  # Apply dilation
+    colored_map[dilated_mask] = (0, 255, 0)  # Green for non-negative values
+
+    # Convert to a PIL image
+    node_map_img = Image.fromarray(colored_map)
+
+    # Annotate node names
+    draw = ImageDraw.Draw(node_map_img)
+    try:
+        font = ImageFont.truetype("arial.ttf", size=70)  # Load a font
+    except IOError:
+        font = ImageFont.load_default()  # Fallback to default font if "arial.ttf" is not found
+
+    unique_values = np.unique(processed_map)
+    for value in unique_values:
+        if value >= 0:
+            y, x = np.argwhere(processed_map == value)[0]  # Get the first occurrence of the node
+            draw.text((x+10, y+10), str(int(value)), fill="white", font=font)
+
+    # Resize the node map to match the circuit image size
+    node_map_img_resized = node_map_img.resize(ckt_img.size, resample=Image.BILINEAR)
+
+    # Combine the two images
+    combined_img = ckt_img.convert("RGBA").copy()
+    node_map_img_resized = node_map_img_resized.convert("RGBA")
+
+    # Blend the images (node map overlay is semi-transparent)
+    combined_img = Image.blend(combined_img, node_map_img_resized, alpha=0.3)
+    
+
+    # Display the combined image
+    combined_img.show()
+
+    return combined_img 
+
 
 
 def simulate_from_img(path: str):
@@ -29,7 +93,7 @@ def simulate_from_img(path: str):
 
     from my_utils import img_preprocess, skeletonize_ckt
     ckt_img_enhanced = img_preprocess(ckt_img, contrast_factor=3, sharpness_factor=1)
-    skeleton_ckt = skeletonize_ckt(ckt_img_enhanced, kernel_size=5,show_skeleton_ckt=True)
+    skeleton_ckt = skeletonize_ckt(ckt_img_enhanced, kernel_size=7,show_skeleton_ckt=False)
 
     
     end_time = time.time()  # Record the end time
@@ -84,19 +148,16 @@ def simulate_from_img(path: str):
     ekdom_sesh = time.time()
     print(f">>>>>> total execution time: {ekdom_sesh - ekdom_start:.4f} seconds")
 
-    return electrical_component_bbox, comp_voltages
+    combined_img = process_and_show_node_map(NODE_MAP, ckt_img)
+
+    return electrical_component_bbox, comp_voltages, NODE_MAP, combined_img
 
 
 if __name__ == "__main__":
     # path = r"ckt5.jpg"
     # path = r"C:\Users\Touhid2\Desktop\50_jpg.rf.dfa9222529f42fb211b7fd65119dddf3.jpg"
     # path = r"ckt1.jpeg"
-    path = r"H:\NOTHING\#Projects\bring_ckt_to_life_project\code\test_imgs\20220729_111338_jpg.rf.2b39886379e2c93aa69a30966e0126e3.jpg"
-
-    bbox, volts = simulate_from_img(path)
+    path = r"ckt6.jpg"
+    bbox, volts, _ , _ = simulate_from_img(path)
 
     print("----------simulation result:", bbox, volts)
-
-
-
-     

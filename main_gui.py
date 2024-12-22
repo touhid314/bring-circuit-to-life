@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QFileDialog, QVBoxLay
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QImage
 from PyQt5.QtCore import Qt, QRect
 from PyQt5 import QtCore
+import numpy as np
 
 from simulate import simulate_from_img
 
@@ -31,13 +32,14 @@ class ImageLabel(QLabel):
         self.voltage_text = voltage_text
         self.repaint()  # Trigger a repaint to draw the overlay
 
+
     def paintEvent(self, event):
         super().paintEvent(event)
         
         # Draw overlay and component name if overlay_rect is not null
         if not self.overlay_rect.isNull() and self.original_pixmap:
             painter = QPainter(self)
-            painter.setBrush(QColor(0, 255, 0, 100))  # Semi-transparent green
+            painter.setBrush(QColor(0, 0, 200, 50))  # Semi-transparent blue
             painter.setPen(Qt.NoPen)
             painter.drawRect(self.overlay_rect)  # Draw the overlay
 
@@ -57,6 +59,7 @@ class ImageLabel(QLabel):
                 painter.drawText(self.voltage_rect, Qt.AlignCenter, f"V across: {self.voltage_text}")
 
             painter.end()
+
 
 class ImageMouseTrackerApp(QWidget):
     def __init__(self):
@@ -101,12 +104,8 @@ class ImageMouseTrackerApp(QWidget):
 
     def load_image(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Open Image File", "", "Images (*.png *.jpg *.jpeg *.bmp)")
-        if file_path:
-            self.original_pixmap = QPixmap(file_path)
-            scaled_pixmap = self.original_pixmap.scaled(self.image_label.width(), self.image_label.height(),
-                                                        Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            self.image_label.setPixmap(scaled_pixmap)
-            self.scaled_pixmap_rect = QRect(0, 0, scaled_pixmap.width(), scaled_pixmap.height())
+                   
+
 
         ################################################################
         # SIMULATION AND EVERYTHING HERE
@@ -114,7 +113,25 @@ class ImageMouseTrackerApp(QWidget):
 
         # simulate for the given image path
         # print(file_path)      
-        self.elec_comp_bbox, self.comp_voltages = simulate_from_img(file_path)
+        
+
+        if file_path:
+            self.elec_comp_bbox, self.comp_voltages, NODE_MAP, combined_img = simulate_from_img(file_path)
+            
+            # Convert PIL Image to QPixmap
+            combined_img_qt = combined_img.convert("RGBA")
+            data = combined_img_qt.tobytes("raw", "RGBA")
+            qimage = QImage(data, combined_img_qt.width, combined_img_qt.height, QImage.Format_RGBA8888)
+            pixmap = QPixmap.fromImage(qimage)
+            
+            self.original_pixmap = pixmap
+            scaled_pixmap = self.original_pixmap.scaled(self.image_label.width(), self.image_label.height(),
+                                                        Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.image_label.setPixmap(scaled_pixmap)
+            self.scaled_pixmap_rect = QRect(0, 0, scaled_pixmap.width(), scaled_pixmap.height())
+        else:
+            print("no file path was specified")
+
 
         self.coord_label.setText("BROUGHT LIFE! HOVER TO FIND!")
 
@@ -130,7 +147,7 @@ class ImageMouseTrackerApp(QWidget):
                 orig_y = int(y * self.original_pixmap.height() / self.scaled_pixmap_rect.height())
                 self.coord_label.setText(f"Image pixel coordinates: (x: {orig_x}, y: {orig_y})")
 
-                # Iterate through component bounding boxes
+                # Iterate through component bounding boxes 
                 for comp, voltage in zip(self.elec_comp_bbox, self.comp_voltages):
                     if(len(comp) == 6):
                         comp_class, comp_x, comp_y, comp_w, comp_h, _ = comp

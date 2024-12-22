@@ -13,6 +13,7 @@ def img_preprocess(img, contrast_factor, sharpness_factor, show_enhanced_img:boo
         img - a PIL ckt image
         show_enhanced_img - if True plot the enhanced image
     returns:
+        img_enhanced - enhanced PIL Image
 
     '''
     from PIL import ImageEnhance
@@ -243,7 +244,8 @@ def remove_duplicates(array):
         # Convert the second element of each row to a set to remove duplicates, then back to a list
         row[1] = list(set(row[1]))
         # Optionally sort the list to maintain order
-        row[1].sort(reverse=True)  # Use reverse=False for ascending order if needed
+        # row[1].sort(reverse=True)  # Use reverse=False for ascending order if needed
+        # the order of nodes, cannot be changed, this will harm the component polarity detection
     return array
 
 
@@ -295,7 +297,8 @@ def modify_list(list1, list2):
 
 def update_nodes(all_connected_nodes: list, NODE_MAP:np.ndarray, COMPONENTS:np.ndarray) -> None:
     flattened_list = [element for row in all_connected_nodes for element in row]
-    
+    row_numbers = [row_index for row_index, row in enumerate(all_connected_nodes) for _ in row]
+
     #  modify the componenets matrix
     for i, row in enumerate(COMPONENTS):
         tmp = row[1] # the 2nd element of the row holds the list of nodes comp is connected to
@@ -310,9 +313,6 @@ def update_nodes(all_connected_nodes: list, NODE_MAP:np.ndarray, COMPONENTS:np.n
                 COMPONENTS[i][1][j] = None
         
         # # now remove the None nodes
-        # for x in COMPONENTS[i][1]: 
-        #     if(x==None): 
-        #         COMPONENTS[i][1].remove(x) 
         COMPONENTS[i][1] = [x for x in COMPONENTS[i][1] if x is not None]
 
 
@@ -320,13 +320,28 @@ def update_nodes(all_connected_nodes: list, NODE_MAP:np.ndarray, COMPONENTS:np.n
 
     # # modify the NODE_MAP matrix
 
-    # already_updated = []    
+    # # modify the NODE_MAP matrix
+    # import math
     # for i in range(NODE_MAP.shape[0]):
     #     for j in range(NODE_MAP.shape[1]):
-    #         for row_index, connected_nodes in enumerate(all_connected_nodes):
-    #             if ([i,j] not in already_updated) and (NODE_MAP[i, j] in connected_nodes):
-    #                     NODE_MAP[i, j] = row_index
-    #                     already_updated.append([i, j])
+    #         # updating the NODE_MAP matrix for position [i,j]
+    #         if (math.isnan(NODE_MAP[i, j] == False) and (NODE_MAP[i,j] != -1)):
+    #             if NODE_MAP[i, j] in flattened_list:
+    #                 # for row_index, connected_nodes in enumerate(all_connected_nodes):
+    #                 #     if NODE_MAP[i, j] in connected_nodes:
+    #                 #         NODE_MAP[i, j] = row_index
+    #                 a = NODE_MAP[i, j]
+    #                 NODE_MAP[i, j] = row_numbers[flattened_list.index(a)]
+
+    # Modify the NODE_MAP matrix
+    import math
+    for i in range(NODE_MAP.shape[0]):
+        for j in range(NODE_MAP.shape[1]):
+            # updating the NODE_MAP matrix for position [i,j]
+            if not math.isnan(NODE_MAP[i, j]) and NODE_MAP[i, j] != -1:
+                if NODE_MAP[i, j] in flattened_list:
+                    a = NODE_MAP[i, j]
+                    NODE_MAP[i, j] = row_numbers[flattened_list.index(a)]
 
 import numpy as np
 import math
@@ -476,8 +491,8 @@ def reduce_nodes(skeleton_ckt: np.ndarray, comp_bbox: list[list[float]], NODE_MA
     import sys
     sys.setrecursionlimit(50000)
 
-    pil_image = Image.fromarray(skeleton_ckt_stripped * 255)  # Convert binary (0, 1) to grayscale (0, 255)
-    pil_image.show()
+    # pil_image = Image.fromarray(skeleton_ckt_stripped * 255)  # Convert binary (0, 1) to grayscale (0, 255)
+    # pil_image.show()
 
     for start_point in all_start_points:
         connected_nodes = []
