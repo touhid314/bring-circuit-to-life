@@ -139,8 +139,9 @@ def simulate_from_img(path: str):
     circuit = make_netlist(COMPONENTS) # from the connection described in the COMPONENTS array, get the ckt netlist
 
     # TODO: this is where LLM comes into play after the circuit object is made
-    from analyse import analyse
-    comp_voltages = analyse(circuit, COMPONENTS)
+    from analyse import Analyzer
+    analyzer = Analyzer(circuit)
+    comp_voltages = analyzer.get_comp_voltages(COMPONENTS)
 
     end_time = time.time()  # Record the end time
     print(f">>>>>> Execution time for simulation: {end_time - start_time:.4f} seconds")

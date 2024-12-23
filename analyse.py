@@ -2,21 +2,7 @@ from PySpice.Spice.Netlist import Circuit
 import numpy
 from PySpice.Unit import *
 
-def get_comp_voltages(COMPONENTS, node_voltages):
-    voltages = []
-    for index, component in enumerate(COMPONENTS):     
-        comp_class = component[0]
-        nodes = component[1]
 
-        t = []
-        t.append(comp_class)
-        
-        volt = abs(node_voltages[nodes[1]] - node_voltages[nodes[0]]) #stores the absolute value of voltage difference across the component
-        t.append(volt)
-
-        voltages.append(t)
-    
-    return voltages
 
 from typing import Union, Tuple
 
@@ -24,6 +10,26 @@ class Analyzer:
     def __init__(self, circuit: Circuit):
         self.circuit = circuit
         self.simulator = circuit.simulator(temperature=25, nominal_temperature=25)
+
+    def get_comp_voltages(self, COMPONENTS):
+        analysis = self.simulator.operating_point()
+        node_voltages = {str(node): float(node) for node in analysis.nodes.values()}
+
+        voltages = []
+        for index, component in enumerate(COMPONENTS):     
+            comp_class = component[0]
+            nodes = component[1]
+
+            t = []
+            t.append(comp_class)
+            node_voltages['0'] = 0
+            volt = abs(node_voltages[str(nodes[1])] - node_voltages[str(nodes[0])]) #stores the absolute value of voltage difference across the component
+            t.append(volt)
+
+            voltages.append(t)
+        
+        return voltages
+
 
     def operating_point(self, output_type: str, nodes: Union[str, Tuple[str, str]] = None) -> Union[float, dict]:
         """
@@ -60,6 +66,8 @@ class Analyzer:
             else:
                 raise ValueError("Invalid nodes input for 'node_voltage'. Provide one or two node names.")
             # TODO: determine whether the node given is within the circuit, pyspice apparently doesn not throw an error if the node is not in the circuit
+
+
 
         elif output_type == "branch_current":
             print("not implemented yet")
