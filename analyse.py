@@ -1,19 +1,100 @@
 from PySpice.Spice.Netlist import Circuit
-import numpy
 from PySpice.Unit import *
 
-
-
-from typing import Union, Tuple
 
 class Analyzer:
     def __init__(self, circuit: Circuit):
         self.circuit = circuit
         self.simulator = circuit.simulator(temperature=25, nominal_temperature=25)
+        self.current_simulation_type = None
+        self.analysis = None
+        
+
+    ############################### SIMULATION FUNCTIONS ########################################
+    # operating_point
+    # dc 
+    # ac
+    # transient
+    # noise
+    # dc_sweep
+    # ac_sweep
+    # temperature
+    # monte_carlo
+    # corner
+    # parametric
+    # sensitivity
+    # transfer_function
+    # poles_zeros
+
+    def operating_point(self):
+        """
+        Performs operating point analysis on the circuit.
+        """
+        self.current_simulation_type = "operating_point"
+        analysis = self.simulator.operating_point()
+
+        self.analysis = analysis
+    
+    def dc_analysis(self):
+        self.current_simulation_type = "dc_analysis"
+        print("not implemented yet")
+        return
+
+    def transient_analysis(self, initial_conditions: list = None , start_time: float = 0, stop_time: float = 1e-3, step_time: float = 1e-6):
+        """
+        Performs transient analysis on the circuit.
+
+        Parameters:
+            start_time (float): Start time of the transient simulation (in seconds). Default is 0.
+            stop_time (float): Stop time of the transient simulation (in seconds). Default is 1e-3.
+            step_time (float): Time step for the simulation (in seconds). Default is 1e-6.
+            
+            initial_condition (list): 
+                Initial conditions for the simulation. Default is None.
+                [[element_name1, voltage_diff], [element_name2, voltage_diff], ....] where element_name is the name of the element and value is the initial condition value.
+                NOTE: pyspice can only set initial condition for voltage nodes, not for current nodes. current node initial conditions are not supported as of now in pyspice
+
+        """
+        # TODO: transient analysis params will be remembered and used in re_simulate function, otherwise issues with get_power simulation
+
+        self.current_simulation_type = "transient_analysis"
+
+
+        if initial_conditions != None:
+            use_initial_condition = True
+            for condition in initial_conditions:
+                element_name = condition[0]
+                value = condition[1]
+                nodes = self.circuit[element_name].node_names
+                node1 = nodes[0]
+                node2 = nodes[1]
+
+                self.simulator.initial_condition(**{node1: value, node2: 0})
+                # TODO: fixit: if the 2 elements are connected back to back, then voltage difference is not properly set. first element's set voltage difference is altered by the second element's set voltage difference
+
+        else:
+            use_initial_condition = False
+
+        analysis = self.simulator.transient(step_time=step_time, end_time=stop_time, start_time=start_time, use_initial_condition=use_initial_condition)
+
+        self.analysis = analysis
+        
+
+    def re_simulate(self):
+        if self.current_simulation_type == "operating_point":
+            self.operating_point()
+        elif self.current_simulation_type == "dc_analysis":
+            self.dc_analysis()
+        elif self.current_simulation_type == "transient_analysis":
+            self.transient_analysis()
+        else:
+            print("No simulation type found")
+
+    ############################### ACTION FUNCTIONS ########################################
 
     def get_comp_voltages(self, COMPONENTS):
-        analysis = self.simulator.operating_point()
-        node_voltages = {str(node): float(node) for node in analysis.nodes.values()}
+        self.simulator.operating_point()
+        node_voltages = {str(node): float(node) for node in self.analysis.nodes.values()}
 
         voltages = []
         for index, component in enumerate(COMPONENTS):     
@@ -29,130 +110,176 @@ class Analyzer:
             voltages.append(t)
         
         return voltages
-
-
-    def operating_point(self, output_type: str, nodes: Union[str, Tuple[str, str]] = None) -> Union[float, dict]:
-        """
-        Performs operating point analysis on the circuit with controllable output.
-
-        Args:
-            output_type (str): The type of output ("node_voltage", "branch_current", "equivalent_resistance").
-            nodes (Union[str, Tuple[str, str]], optional): Node(s) for the analysis. Defaults to None.
-                - For "node_voltage": A single node or two nodes for voltage difference.
-                - For "branch_current": Two nodes specifying the branch.
-                - For "equivalent_resistance": Two nodes between which resistance is calculated.
-
-        Returns:
-            Union[float, dict]: The computed result based on the output type.
-        """
-        analysis = self.simulator.operating_point()
-
-        # Extract node voltages
-        node_voltages = {str(node): float(node) for node in analysis.nodes.values()}
-        print(node_voltages)
-
-        # Extract branch currents
-        branch_currents = {str(branch): float(branch) for branch in analysis.branches.values()}
-
-        if output_type == "node_voltage":
-            if isinstance(nodes, tuple) and len(nodes) == 2:
-                # Voltage difference between two nodes
-                v1 = node_voltages.get(nodes[0], 0.0)
-                v2 = node_voltages.get(nodes[1], 0.0)
-                return v1 - v2
-            elif isinstance(nodes, str):
-                # Voltage at a single node
-                return node_voltages.get(nodes, 0.0)
-            else:
-                raise ValueError("Invalid nodes input for 'node_voltage'. Provide one or two node names.")
-            # TODO: determine whether the node given is within the circuit, pyspice apparently doesn not throw an error if the node is not in the circuit
-
-
-
-        elif output_type == "branch_current":
-            print("not implemented yet")
     
-    def dc_analysis(self):
-        print("not implemented yet")
+    
+    def change_value_of_element(self, element_name:str, value):
+        element = self.circuit[element_name]
 
-    def transient_analysis(self, start_time: float = 0, stop_time: float = 1e-3, step_time: float = 1e-6, plot: bool = True):
-        """
-        Performs transient analysis on the circuit and optionally plots the results.
+        if element.ALIAS == "R":
+            element.resistance = value
+        elif element.ALIAS == "C":
+            element.capacitance = value
+        elif element.ALIAS == "L":
+            element.inductance = value
+        elif element.ALIAS == "V":
+            element.dc_value = value
+        else:
+            print("Element type not found, element value not changed")
 
-        Parameters:
-            start_time (float): Start time of the transient simulation (in seconds). Default is 0.
-            stop_time (float): Stop time of the transient simulation (in seconds). Default is 1e-3.
-            step_time (float): Time step for the simulation (in seconds). Default is 1e-6.
-            plot (bool): Whether to plot the results. Default is True.
+    
+    def add_ammeter_with_element(self, circuit, element_name):
+        '''Add a dummy voltage source in the circuit to measure current through the element.
+        Name of dummy voltage source is V<element_name>_plus.
+        so branch current through element of this name is the current through the element.
+        '''
+        element = self.circuit[element_name] # element name is case sensitive here. element name is as in the netlist
+        a = element.plus
+        try:
+            a.add_current_probe(circuit)
+        except NameError:
+            print(f"Current probe already added to {element_name}")
+    
+    def get_voltage(self, nodes_name:list=None, show_plot=False):
+        '''
+        pyspice does not provide voltage for gnd node in the analysis.nodes dictionary. 
+        so, for ground node, check voltage without this function.
+        '''
 
-        Returns:
-            dict: Dictionary containing time values, node voltages, and branch currents.
-        """
         import matplotlib.pyplot as plt
-        import numpy as np
+        from PySpice.Probe.Plot import plot
 
-        # Run the transient analysis
-        self.simulator.initial_condition(node1=0)
-        analysis = self.simulator.transient(step_time=step_time, end_time=stop_time, start_time=start_time)
+        if(nodes_name):
+            if str(self.circuit.gnd) in nodes_name:
+                nodes_name.remove(str(self.circuit.gnd))
+
+            if (len(nodes_name) == 1):
+                node_name = nodes_name[0]
+                voltage = self.analysis.nodes[node_name.lower()]
+
+                if(voltage.shape[0] > 1 and show_plot):
+                    figure = plt.figure(f"Bring Circuit to Life - time vs 'node {node_name}' voltage graph")
+                    axe = plt.subplot(111)
+                    plot(self.analysis.nodes[node_name], axis=axe)
+                    plt.title(f"time vs 'node {node_name}' voltage graph")
+                    plt.xlabel('Time [s]')
+                    plt.ylabel(f"Voltage [V] at 'node {node_name}'")
+                    
+                    self.show_plot(plt, axe)
+
+            elif(len(nodes_name) == 2):
+                node1 = nodes_name[0]
+                node2 = nodes_name[1]
+
+                voltage = (self.analysis.nodes[node1.lower()]) - (self.analysis.nodes[node2.lower()])
+
+                if(voltage.shape[0] > 1 and show_plot):
+                    figure = plt.figure(f"Bring Circuit to Life - time vs  'node {node1} - node {node2}' voltage graph")
+                    axe = plt.subplot(111)
+                    plot(self.analysis.nodes[node1] - self.analysis.nodes[node2], axis=axe)
+                    plt.title(f"time vs  'node {node1} - node {node2}' voltage graph")
+                    plt.xlabel('Time [s]')
+                    plt.ylabel(f"'node {node1} - node {node2}' Voltage [V]")
+                    
+                    self.show_plot(plt, axe)
+            else:
+                raise ValueError("Only 1 or 2 nodes can be provided")
+
+            return voltage
+        
+        else:
+            raise ValueError("Nodes name not provided")
+
+    def get_current(self, element_name:str, show_plot=False):
+
+        if element_name.lower() not in self.analysis.branches:
+            self.add_ammeter_with_element(self.circuit, element_name) # name of the ammeter will be V<element_name>_plus
+            self.re_simulate()
+            ammeter_name = f'V{element_name}_plus' # in the branch list, elemnt name is in lower case
+            current = self.analysis.branches[ammeter_name.lower()]
+
+            # now remove the ammeter
+            # self.circuit._remove_element(self.circuit[ammeter_name])
+            # no need to remove the element, removing the element does not remove the extra node added and causes issues later on
+        else:
+            current = self.analysis.branches[element_name.lower()]
 
 
-        # Extract time values
-        time_values = np.array(analysis.time)
+        if(current.shape[0] > 1 and show_plot):
+            import matplotlib.pyplot as plt
+            from PySpice.Probe.Plot import plot
+            import mplcursors
 
-        # Extract node voltages
-        node_voltages = {str(node): np.array(node) for node in analysis.nodes.values()}
-
-        # Extract branch currents
-        branch_currents = {str(branch): np.array(branch) for branch in analysis.branches.values()}
-
-        # Plot results if requested
-        if plot:
-            plt.figure(figsize=(10, 6))
-            # Plot node voltages
-            for node, voltage in node_voltages.items():
-                plt.plot(time_values, voltage, label=f"Node {node} Voltage")
+            figure = plt.figure(f'Bring Circuit to Life - time vs {element_name} current graph')
+            axe = plt.subplot(111)
+            plot(self.analysis.branches[element_name.lower()], axis=axe)
             
-            # Plot branch currents
-            for branch, current in branch_currents.items():
-                plt.plot(time_values, current, linestyle='--', label=f"Branch {branch} Current")
+            plt.title(f"time vs 'current through {element_name}' graph")
+            plt.xlabel('Time [s]')
+            plt.ylabel(f"Current [A] through {element_name}")
             
-            plt.xlabel("Time (s)")
-            plt.ylabel("Amplitude")
-            plt.title("Transient Analysis Results")
-            plt.legend()
-            plt.grid()
-            plt.show()
+            self.show_plot(plt, axe)
 
-        # Format the results
-        results = {
-            "time": time_values,
-            "node_voltages": node_voltages,
-            "branch_currents": branch_currents,
-        }
+        # TODO: direction of current can be explicitly returned
 
-        return results    
+        return current
+    
+    def get_power(self, element_name:str, show_plot=False):
+        current = self.get_current(element_name, show_plot=False)
 
-    # dc
-    # ac
-    # transient
-    # noise
-    # dc_sweep
-    # ac_sweep
-    # temperature
-    # monte_carlo
-    # corner
-    # parametric
-    # sensitivity
-    # transfer_function
-    # poles_zeros
+        element = self.circuit[element_name]
+        nodes = element.node_names
+        voltage = self.get_voltage(nodes_name=nodes, show_plot=False)
+        
+        power = current * voltage
+        
+        if(power.shape[0] > 1 and show_plot):
+            import matplotlib.pyplot as plt
+            from PySpice.Probe.Plot import plot
 
+            figure = plt.figure(f'Bring Circuit to Life - time vs {element_name} power graph')
+            axe = plt.subplot(111)
+            plot(power, axis=axe)
+            
+            plt.title(f"time vs 'power through {element_name}' graph")
+            plt.xlabel('Time [s]')
+            plt.ylabel(f"Power [W] through {element_name}")
+            
+            self.show_plot(plt, axe)
+
+        return power
+        
+    def change_ground(self, new_ground:str):
+        print("not implemented yet")
+        return
+    
+    def show_plot(self, plt, axe):
+        import mplcursors
+
+        plt.grid(True)
+        axe.axhline(0, color='black', linewidth=1, linestyle='--')
+        axe.axvline(0, color='black', linewidth=1, linestyle='--')
+        
+        # Dynamically set xlim and ylim
+        x_min, x_max = axe.get_xlim()
+        y_min, y_max = axe.get_ylim()
+        
+        axe.set_xlim(left=max(x_min, -5), right=min(x_max, 5))
+        axe.set_ylim(bottom=max(y_min, -5), top=min(y_max, 5))
+        
+        mplcursors.cursor(axe, hover=True)
+        plt.gcf().set_size_inches(10, 5)  # Change the figure size
+        plt.show(block=False)  # Ensure the plot stays open until closed by the user
 
 if __name__ == "__main__":
 
-    # # Create a new circuit
+    # Analyse the circuit
+    import warnings
+    warnings.filterwarnings("ignore")
+
+    ############### operaitng point analysis
+    # # # Create a new circuit
     # circuit = Circuit('Captured Circuit from Image')
 
-    # # Add components to the circuit
     # circuit.V(1, '1', '0', 10@u_V)
     # circuit.C(1, '0', '2', 1@u_uF)
     # circuit.R(1, '0', '3', 1@u_kΩ)
@@ -166,25 +293,45 @@ if __name__ == "__main__":
     # circuit.R(6, '1', '5', 1@u_kΩ)
     # circuit.R(7, '3', '7', 1@u_kΩ)
 
-        # Create a new Circuit
+       # analyzer = Analyzer(circuit)
+    # analyzer.operating_point()
+    
+    # v = analyzer.get_voltage(analysis=analysis, nodes_name=['5', '1'], show_plot=False)
+    # if(v.shape[0] == 1):
+    #     print(float(v))
+
+    # current = analyzer.get_current(analysis=analysis, element_name='V1', show_plot=False)
+    # if(current.shape[0] == 1):
+    #     print(float(current))
+
+    # power = analyzer.get_power(element_name='R2', show_plot=False)
+    # if(power.shape[0] == 1):
+    #     print(float(power))
+
+
+    ####################### transient analysis
+    # Create a new Circuit
     circuit = Circuit('RC Circuit')
 
-    # Define components
-    circuit.V(1, 'in', circuit.gnd, 5)  # DC Voltage Source: 5V between nodes 'in' and ground
-    circuit.R(1, 'in', 'node1', 1e3)       # Resistor: 1 kOhm between 'in' and 'node1'
-    circuit.C(1, 'node1', circuit.gnd, 1e-6) # Capacitor: 1uF between 'node1' and ground
+    # circuit.V(1, '1', '0', 10)  # DC Voltage Source: 5V between nodes 'in' and ground
+    # circuit.R(1, '1', '2', 1e3)       # Resistor: 1 kOhm between 'in' and 'node1'
+    # circuit.C(1, '2', '3', 1e-6) # Capacitor: 1uF between 'node1' and ground
+    # circuit.C(2, '3', '4', 2e-6)
+    # circuit.R(2, '4', '0', 2e3)
 
-    # Print the netlist
-    # print(str(circuit))
-
-    # Analyse the circuit
-    import warnings
-    warnings.filterwarnings("ignore")
+    circuit.V(1, '1', '0', 10)  # DC Voltage Source: 5V between nodes 'in' and ground
+    circuit.R(1, '1', '2', 1e3)       # Resistor: 1 kOhm between 'in' and 'node1'
+    circuit.C(1, '2', '0', 1e-6) # Capacitor: 1uF between 'node1' and ground
 
 
     analyzer = Analyzer(circuit)
-    # results = analyzer.operating_point("branch_current", nodes=("0", "3"))
+    # analyzer.transient_analysis(initial_conditions= [['C1', 3], ['C2', 8]] ,start_time=0, stop_time=1e-3, step_time=1e-6)
+    analyzer.transient_analysis(initial_conditions= [['C1', 3]] ,start_time=0, stop_time=20e-3, step_time=1e-6)
 
-    # print(f"Branch current between nodes 0 and 3: {results:.2f}A")
-    results = analyzer.transient_analysis(start_time=0, stop_time=30e-3, step_time=1e-6)
+    analyzer.get_voltage(nodes_name=['1','2'], show_plot=True)
+    analyzer.get_current(element_name='V1', show_plot=True)
+    analyzer.get_power(element_name='C1', show_plot=True)
 
+    # keep these codes at the end of the simulation to keep the plot open after the simulation is done
+    import matplotlib.pyplot as plt
+    plt.show()
