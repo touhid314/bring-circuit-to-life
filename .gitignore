@@ -4,6 +4,14 @@
 # cache files
 **/__pycache__/
 
+# trash codes
+trash_codes/
+
+# neural network weights
+*.bin
+*.pth
+*.crdownload
+
 # image files
 *.jpg
 *.jpeg

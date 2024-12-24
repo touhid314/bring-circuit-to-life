@@ -113,6 +113,13 @@ class Analyzer:
     
     
     def change_value_of_element(self, element_name:str, value):
+        '''
+        changes the value of the element in the circuit.
+        arguments:
+            element_name: name of the element in the circuit. case sensitive
+            value: new value of the element
+        '''
+
         element = self.circuit[element_name]
 
         if element.ALIAS == "R":
@@ -278,20 +285,22 @@ if __name__ == "__main__":
 
     ############### operaitng point analysis
     # # # Create a new circuit
-    # circuit = Circuit('Captured Circuit from Image')
+    circuit = Circuit('Captured Circuit from Image')
 
-    # circuit.V(1, '1', '0', 10@u_V)
-    # circuit.C(1, '0', '2', 1@u_uF)
-    # circuit.R(1, '0', '3', 1@u_kΩ)
-    # circuit.V(2, '4', '5', 10@u_V)
-    # circuit.R(2, '0', '6', 1@u_kΩ)
-    # circuit.L(1, '8', '7', 1@u_mH)
-    # circuit.R(3, '2', '3', 1@u_kΩ)
-    # circuit.L(2, '0', '3', 1@u_mH)
-    # circuit.R(4, '4', '6', 1@u_kΩ)
-    # circuit.R(5, '8', '5', 1@u_kΩ)
-    # circuit.R(6, '1', '5', 1@u_kΩ)
-    # circuit.R(7, '3', '7', 1@u_kΩ)
+    circuit.V(1, '1', '0', 10@u_V)
+    circuit.C(1, '0', '2', 1@u_uF)
+    circuit.R(1, '0', '3', 1@u_kΩ)
+    circuit.V(2, '4', '5', 10@u_V)
+    circuit.R(2, '0', '6', 1@u_kΩ)
+    circuit.L(1, '8', '7', 1@u_mH)
+    circuit.R(3, '2', '3', 1@u_kΩ)
+    circuit.L(2, '0', '3', 1@u_mH)
+    circuit.R(4, '4', '6', 1@u_kΩ)
+    circuit.R(5, '8', '5', 1@u_kΩ)
+    circuit.R(6, '1', '5', 1@u_kΩ)
+    circuit.R(7, '3', '7', 1@u_kΩ)
+
+    print(circuit)
 
        # analyzer = Analyzer(circuit)
     # analyzer.operating_point()
@@ -322,7 +331,7 @@ if __name__ == "__main__":
     circuit.V(1, '1', '0', 10)  # DC Voltage Source: 5V between nodes 'in' and ground
     circuit.R(1, '1', '2', 1e3)       # Resistor: 1 kOhm between 'in' and 'node1'
     circuit.C(1, '2', '0', 1e-6) # Capacitor: 1uF between 'node1' and ground
-
+    print(circuit)
 
     analyzer = Analyzer(circuit)
     # analyzer.transient_analysis(initial_conditions= [['C1', 3], ['C2', 8]] ,start_time=0, stop_time=1e-3, step_time=1e-6)
@@ -335,3 +344,5 @@ if __name__ == "__main__":
     # keep these codes at the end of the simulation to keep the plot open after the simulation is done
     import matplotlib.pyplot as plt
     plt.show()
+
+
