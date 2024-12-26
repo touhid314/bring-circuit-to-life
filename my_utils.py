@@ -30,7 +30,8 @@ def img_preprocess(img, contrast_factor, sharpness_factor, show_enhanced_img:boo
     sharpness_enhancer = ImageEnhance.Sharpness(img_enhanced) 
     img_enhanced = sharpness_enhancer.enhance(sharpness_factor)    
 
-    if(show_enhanced_img): img_enhanced.show()
+    if show_enhanced_img:
+        img_enhanced.show()
 
     return img_enhanced
 

@@ -68,7 +68,7 @@ def process_and_show_node_map(node_map: np.ndarray, ckt_img: Image.Image):
     
 
     # Display the combined image
-    combined_img.show()
+    # combined_img.show()
 
     return combined_img 
 
@@ -92,7 +92,7 @@ def simulate_from_img(path: str):
     start_time = time.time()  # Record the start time
 
     from my_utils import img_preprocess, skeletonize_ckt
-    ckt_img_enhanced = img_preprocess(ckt_img, contrast_factor=3, sharpness_factor=1)
+    ckt_img_enhanced = img_preprocess(ckt_img, contrast_factor=3, sharpness_factor=1, show_enhanced_img=False)
     skeleton_ckt = skeletonize_ckt(ckt_img_enhanced, kernel_size=7,show_skeleton_ckt=False)
 
     

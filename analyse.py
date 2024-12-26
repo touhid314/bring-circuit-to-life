@@ -93,7 +93,7 @@ class Analyzer:
     ############################### ACTION FUNCTIONS ########################################
 
     def get_comp_voltages(self, COMPONENTS):
-        self.simulator.operating_point()
+        self.operating_point()
         node_voltages = {str(node): float(node) for node in self.analysis.nodes.values()}
 
         voltages = []

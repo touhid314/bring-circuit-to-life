@@ -3,13 +3,14 @@ the gui for running the program
 '''
 
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QFileDialog, QVBoxLayout, QPushButton
-from PyQt5.QtGui import QPixmap, QPainter, QColor, QImage
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QFileDialog, QVBoxLayout, QPushButton, QHBoxLayout, QScrollArea, QTextEdit
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QImage, QFontDatabase, QFont
 from PyQt5.QtCore import Qt, QRect
 from PyQt5 import QtCore
 import numpy as np
 
 from simulate import simulate_from_img
+from PyQt5.QtWidgets import QLineEdit
 
 
 class ImageLabel(QLabel): 
@@ -45,7 +46,7 @@ class ImageLabel(QLabel):
 
             # Draw component name above the overlay rectangle
             if self.component_name:
-                painter.setPen(Qt.black)
+                painter.setPen(Qt.white)
                 painter.drawText(self.overlay_rect.bottomLeft() - QtCore.QPoint(0, 0), self.component_name)
 
             # Draw voltage rectangle and text
@@ -65,59 +66,201 @@ class ImageMouseTrackerApp(QWidget):
     def __init__(self):
         super().__init__()
 
+        # Load the Roboto font
+        QFontDatabase.addApplicationFont("./font/Roboto-Medium.ttf")
+        self.setFont(QFont("Roboto"))
+
         # Set up the window
         self.setWindowTitle("Bring Circuit to Life!")
-        self.setGeometry(100, 100, 600, 600)
+        self.setGeometry(100, 100, 1000, 500)  # Adjusted width to accommodate both areas
         self.setMouseTracking(True)
         
-        # Create a layout to organize widgets
-        self.layout = QVBoxLayout(self)
+        # Main horizontal layout
+        self.main_layout = QHBoxLayout(self)
+
+        # Left vertical layout
+        self.left_layout = QVBoxLayout()
+        self.main_layout.addLayout(self.left_layout)
+
+        # Right vertical layout
+        self.right_layout = QVBoxLayout()
+        self.main_layout.addLayout(self.right_layout)
 
         # Button to upload image
         self.upload_button = QPushButton("Upload Circuit Schematic Image", self)
+        self.upload_button.setFixedWidth(500)
         self.upload_button.clicked.connect(self.load_image)
 
-        # Label to display the image with fixed size
+        # Label to display the image with fixed size and placeholder image
         self.image_label = ImageLabel(self)
         self.image_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self.image_label.setFixedSize(500, 400)
+        self.image_label.setFixedSize(500, 500)
         self.image_label.setStyleSheet("border: 1px solid black;")
         self.image_label.setMouseTracking(True)
+        self.image_label.setStyleSheet("background-color: #222; border: 0px solid #444;")
+
+        # Set a placeholder image
+        placeholder_pixmap = QPixmap(500, 500)
+        placeholder_pixmap.fill(QColor("#333"))
+        self.image_label.setPixmap(placeholder_pixmap)
 
         # Label to display coordinates
         self.coord_label = QLabel("Click 'Upload Image' to load an image", self)
+        self.coord_label.setStyleSheet("color: #ddd;")
 
-        # Add widgets to the layout
-        self.layout.addWidget(self.upload_button)
-        self.layout.addWidget(self.image_label)
-        self.layout.addWidget(self.coord_label)
+        # Text area for user input
+        self.textbox = QTextEdit(self)
+        self.textbox.setFixedSize(450, 80)
+        self.textbox.setPlaceholderText("Talk with the circuit")
+        self.textbox.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.textbox.setStyleSheet("background-color: #333; color: #ddd; padding: 10px; border: 1px solid #444;")
+        self.textbox.installEventFilter(self)
+
+
+        # Button to ask circuit
+        self.ask_button = QPushButton("Ask Circuit", self)
+        self.ask_button.setFixedSize(100, 30)  # Smaller width and height
+        self.ask_button.setStyleSheet("margin-top: 10px; background-color: #555; color: #ddd; border: 1px solid #444;")
+        self.ask_button.clicked.connect(self.ask_circuit)
+
+        # Text area for displaying long strings and paragraphs
+        self.display_area = QLabel(self)
+        self.display_area.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        self.display_area.setWordWrap(True)
+        self.set_chat_area_text("Hello! Upload a circuit schematic image to start simulating!")
+        self.display_area.setStyleSheet("border: 0px solid black; padding: 10px;")
+        self.display_area.setTextInteractionFlags(Qt.TextSelectableByMouse)  # Make text selectable and copyable
+        self.display_area.adjustSize()  # Adjust size to fit the content
+        self.textbox.textChanged.connect(self.scroll_to_bottom) # TODO: 
+
+
+        # Scroll area to contain the display area
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFixedSize(450, 400)
+        self.scroll_area.setWidget(self.display_area)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setStyleSheet("""
+            QScrollArea {
+            background-color: #222;
+            border: 1px solid #444;
+            }
+            QScrollBar:vertical {
+            background-color: #333;
+            width: 12px;
+            margin: 0px 3px 0px 3px;
+            }
+            QScrollBar::handle:vertical {
+            background-color: #555;
+            min-height: 20px;
+            border-radius: 5px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+            background: none;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+            background: none;
+            }
+        """)
+
+
+        # Add the scroll area to the right layout
+        self.right_layout.addWidget(self.scroll_area)
+
+        # Add widgets to the left layout
+        self.left_layout.addWidget(self.upload_button)
+        self.left_layout.addWidget(self.image_label)
+        self.left_layout.addWidget(self.coord_label)
+
+        # Add widgets to the right layout
+        self.right_layout.addWidget(self.textbox)
+        self.right_layout.addWidget(self.ask_button, alignment=Qt.AlignRight)  # Align button to the right
+        # self.setStyleSheet("background-color: #222; color: #ddd;")
+
+         # Set the overall style for the main window
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #222;
+                color: #ddd;
+                font-family: Roboto;
+                font-size: 12px;
+            }
+            QLabel, QLineEdit, QPushButton, QScrollArea {
+                font-family: Roboto;
+                font-size: 12px;
+            }
+            ImageLabel{
+                font-size: 10px;
+                color: white;
+            }
+        """)
 
         self.original_pixmap = None
         self.scaled_pixmap_rect = QRect()
 
-        
         # Component mapping and bounding boxes
-        self.component_mapping = {0: 'capacitor_unpolarized', 1: 'inductor', 2: 'resistor', 3: 'vdc'}
+        self.component_mapping = {0: 'Capacitor(Unpolarized)', 1: 'Inductor', 2: 'Resistor', 3: 'VDC'}
         self.elec_comp_bbox = []
         self.comp_voltages = []
-        
+    
+
+
+    def scroll_to_bottom(self):
+        # Ensure the scrollbar is at the bottom by default
+        self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum())
+
+
+    def set_chat_area_text(self, text, append=True):
+        if append:
+            current_text = self.display_area.text()
+            new_text = current_text + "\n" + text
+            self.display_area.setText(new_text)
+        else:
+            self.display_area.setText(text)
+
+
+
+    def ask_circuit(self):
+        user_input = self.textbox.toPlainText()
+        if user_input:
+            show_text = f"\n\n► {user_input}"
+
+            ########## INTEGRATE LLM HERE #########
+            response = f"Processing your question..."
+            
+            show_text = show_text + "\n••• "+ response
+            self.set_chat_area_text(show_text)
+            self.textbox.clear()  # Clear the text area after processing the question
+        else:
+            self.set_chat_area_text("Please enter a question.")
+
+
+
+    def eventFilter(self, source, event):
+        if event.type() == QtCore.QEvent.KeyPress and source is self.textbox:
+            if event.key() == Qt.Key_Return and not (event.modifiers() & Qt.ShiftModifier):
+                self.ask_circuit()
+                return True
+        return super().eventFilter(source, event)
+
+
 
     def load_image(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Open Image File", "", "Images (*.png *.jpg *.jpeg *.bmp)")
                    
-
-
-        ################################################################
-        # SIMULATION AND EVERYTHING HERE
-        self.coord_label.setText("BRINGING LIFE TO CIRCUIT....")
-
         # simulate for the given image path
         # print(file_path)      
-        
-
+    
         if file_path:
+            
+            self.coord_label.setText("BRINGING LIFE TO CIRCUIT....") # TODO: why does not this work?
+            # self.set_chat_area_text("BRINGING LIFE TO CIRCUIT....")
+
+            ################## SIMULATING #############################
             self.elec_comp_bbox, self.comp_voltages, NODE_MAP, combined_img = simulate_from_img(file_path)
             
+
             # Convert PIL Image to QPixmap
             combined_img_qt = combined_img.convert("RGBA")
             data = combined_img_qt.tobytes("raw", "RGBA")
