@@ -136,7 +136,7 @@ def simulate_from_img(path: str):
     start_time = time.time()  # Record the start time
 
     from make_netlist import make_netlist
-    circuit = make_netlist(COMPONENTS) # from the connection described in the COMPONENTS array, get the ckt netlist
+    circuit = make_netlist(COMPONENTS) # from the connection described in the COMPONENTS array, get the circuit object
 
     # TODO: this is where LLM comes into play after the circuit object is made
     from analyse import Analyzer

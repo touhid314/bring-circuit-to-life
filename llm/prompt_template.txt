@@ -1,0 +1,9 @@
+user: what is the voltage in node 8?
+system: getting voltage at node 8...  
+	voltage at node 8 is 19V.
+
+user: what is the voltage in node 16?
+system:	sorry, I don't have any node named node 16. 
+
+user: what is the voltage in node 21?
+system:	sorry, I failed to execute that. Please provide another prompt. 

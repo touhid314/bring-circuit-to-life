@@ -148,6 +148,19 @@ class Analyzer:
     
     def get_voltage(self, nodes_name:list=None, show_plot=False):
         '''
+        arguments:
+        nodes_name - a list of nodes. if one node is passed, voltage at that node is returned.\\
+              if 2 nodes are passed voltage difference between the first and 2nd node is returned.\\
+              if more than 2 nodes are passed ValueError is raised.
+        show_plot - if true, plots the voltage also. plotting will only work in transient analysis as of now.
+
+
+        example use:
+        get_voltage(nodes_name=['1'], show_plot=False)
+        get_voltage(nodes_name=['5', '8'], show_plot=True)
+        get_voltage(nodes_name=['5', '8'], show_plot=False)
+        
+
         pyspice does not provide voltage for gnd node in the analysis.nodes dictionary. 
         so, for ground node, check voltage without this function.
         '''
@@ -177,6 +190,7 @@ class Analyzer:
                 node1 = nodes_name[0]
                 node2 = nodes_name[1]
 
+
                 voltage = (self.analysis.nodes[node1.lower()]) - (self.analysis.nodes[node2.lower()])
 
                 if(voltage.shape[0] > 1 and show_plot):
@@ -190,8 +204,11 @@ class Analyzer:
                     self.show_plot(plt, axe)
             else:
                 raise ValueError("Only 1 or 2 nodes can be provided")
-
-            return voltage
+            
+            if(voltage.shape[0] == 1):
+                return float(voltage)
+            else:
+                return voltage
         
         else:
             raise ValueError("Nodes name not provided")
