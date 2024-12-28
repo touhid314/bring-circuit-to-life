@@ -1,5 +1,6 @@
 # Demo 
-![ezgif-4-b462330305](https://github.com/user-attachments/assets/01cb5a3c-7d5a-4d1e-bc87-9325a724fd34)
+https://github.com/user-attachments/assets/658b35f8-ab26-4b78-84f7-7b0ceaa8bfd9
+
 
 # Dataset
 A proprietary dataset has been developed for training the models. It is the largest circuit component dataset created to date and is not included in this repository.
