@@ -209,10 +209,17 @@ class Analyzer:
             #     return float(voltage)
             # else:
             #     return voltage
-            if(show_plot):
-                return {"voltage": voltage, "plt":plt, "axe":axe}
+            
+            sim_descr = f"simulation type performed: {self.current_simulation_type}."
+            if(voltage.shape[0] == 1):
+                sim_descr = sim_descr + f"Voltage: {float(voltage)}"
             else:
-                return {"voltage": voltage}
+                sim_descr = sim_descr + f"Voltage is a time series data."
+
+            if(show_plot):
+                return {"voltage": voltage, "plt":plt, "axe":axe, "sim_descr": sim_descr}
+            else:
+                return {"voltage": voltage, "sim_descr": sim_descr}
         
         else:
             raise ValueError("Nodes name not provided")
@@ -248,6 +255,7 @@ class Analyzer:
             self.show_plot(plt, axe)
 
         # TODO: direction of current can be explicitly returned
+        # TODO: return dict, add sim_descr
 
         return current
     
@@ -277,10 +285,12 @@ class Analyzer:
             plt.legend()
             self.show_plot(plt, axe)
 
+        sim_descr = f"simulation type performed: {self.current_simulation_type}"
+
         if(show_plot):
-            return {"powers": powers, "plt":plt, "axe":axe}
+            return {"powers": powers, "plt":plt, "axe":axe, "sim_descr": sim_descr}
         else:
-            return {"powers": powers}
+            return {"powers": powers, "sim_descr": sim_descr}
         
     def change_ground(self, new_ground:str):
         # TODO: 
@@ -382,7 +392,8 @@ if __name__ == "__main__":
     analyzer = Analyzer(circuit)
     analyzer.transient_analysis(initial_conditions= [['C1', 0]] , stop_time=10e-3, step_time=1e-6)
     analyzer.get_voltage(nodes_name=['0','1'], show_plot=True)
-    analyzer.get_power(element_names=['R1', 'R2', 'C1'], show_plot=True)
+    output_dict = analyzer.get_power(element_names=['R1', 'R2', 'C1'], show_plot=True)
+    print(output_dict["sim_descr"])
 
     import matplotlib.pyplot as plt
     plt.show()

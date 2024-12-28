@@ -38,6 +38,18 @@ def get_system_instruction(ckt_netlist=None, context=None):
 
                 pyspice does not provide voltage for gnd node in the analysis.nodes dictionary.
                 so, for ground node, check voltage without this function.
+
+        def get_power(element_names: list, show_plot=False)
+
+        def get_current(element_name:str, show_plot=False)
+
+        def operating_point():
+                "performs DC steady state analysis of the circuit"
+
+        def transient_analysis(self, initial_conditions: list = None , start_time: float = 0, stop_time: float = 1e-3, step_time: float = 1e-6):
+                "performs tranient analysis of the circuit"
         """
+
+        
 
         return system_instruction

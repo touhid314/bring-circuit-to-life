@@ -2,7 +2,7 @@ import time
 from llm.llm_model import get_llm_model
 from llm.system_instruction import get_system_instruction
 
-def get_llm_response(prompt:str, lcpp_llm, ckt_netlist, show_execution_time:bool = True):
+def get_llm_response(prompt:str, lcpp_llm, context=None, ckt_netlist=None, show_execution_time:bool = True):
     """
     lcpp_llm - a llama cpp compatible LLM model
     """
@@ -10,8 +10,6 @@ def get_llm_response(prompt:str, lcpp_llm, ckt_netlist, show_execution_time:bool
     if(show_execution_time): inference_start_time = time.time()
  
     # prompt generation
-    context = None  # context holds the "simulation result description"
-
     system_instruction = get_system_instruction(ckt_netlist, context)
     
     prompt_template=f"""SYSTEM:{system_instruction}
