@@ -9,7 +9,7 @@ A proprietary dataset has been developed for training the models. It is the larg
 I am having quite some trouble keeping up with the project by myself. If you are interested in contributing to the project, please knock me at touhid1.6021@gmail.com.
 
 # License
-Shield: [![CC BY-NC 4.0][cc-by-nc-shield]][cc-by-nc]
+[![CC BY-NC 4.0][cc-by-nc-shield]][cc-by-nc]
 
 This work is licensed under a [Creative Commons Attribution-NonCommercial 4.0 International License][cc-by-nc].
 
