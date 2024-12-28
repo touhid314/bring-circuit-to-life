@@ -205,10 +205,14 @@ class Analyzer:
             else:
                 raise ValueError("Only 1 or 2 nodes can be provided")
             
-            if(voltage.shape[0] == 1):
-                return float(voltage)
+            # if(voltage.shape[0] == 1):
+            #     return float(voltage)
+            # else:
+            #     return voltage
+            if(show_plot):
+                return {"voltage": voltage, "plt":plt, "axe":axe}
             else:
-                return voltage
+                return {"voltage": voltage}
         
         else:
             raise ValueError("Nodes name not provided")
@@ -247,32 +251,39 @@ class Analyzer:
 
         return current
     
-    def get_power(self, element_name:str, show_plot=False):
-        current = self.get_current(element_name, show_plot=False)
+    def get_power(self, element_names: list, show_plot=False):
+        import matplotlib.pyplot as plt
+        from PySpice.Probe.Plot import plot
 
-        element = self.circuit[element_name]
-        nodes = element.node_names
-        voltage = self.get_voltage(nodes_name=nodes, show_plot=False)
+        powers = {}
         
-        power = current * voltage
-        
-        if(power.shape[0] > 1 and show_plot):
-            import matplotlib.pyplot as plt
-            from PySpice.Probe.Plot import plot
+        for element_name in element_names:
+            current = self.get_current(element_name, show_plot=False)
+            element = self.circuit[element_name]
+            nodes = element.node_names
+            voltage = self.get_voltage(nodes_name=nodes, show_plot=False)['voltage']
+            power = current * voltage
+            powers[element_name] = power
 
-            figure = plt.figure(f'Bring Circuit to Life - time vs {element_name} power graph')
+        if show_plot:
+            figure = plt.figure(f'Bring Circuit to Life - time vs power graph')
             axe = plt.subplot(111)
-            plot(power, axis=axe)
+            for element_name, power in powers.items():
+                plot(power, axis=axe, label=f'{element_name} Power')
             
-            plt.title(f"time vs 'power through {element_name}' graph")
+            plt.title(f"time vs power graph")
             plt.xlabel('Time [s]')
-            plt.ylabel(f"Power [W] through {element_name}")
-            
+            plt.ylabel(f"Power [W]")
+            plt.legend()
             self.show_plot(plt, axe)
 
-        return power
+        if(show_plot):
+            return {"powers": powers, "plt":plt, "axe":axe}
+        else:
+            return {"powers": powers}
         
     def change_ground(self, new_ground:str):
+        # TODO: 
         print("not implemented yet")
         return
     
@@ -287,8 +298,8 @@ class Analyzer:
         x_min, x_max = axe.get_xlim()
         y_min, y_max = axe.get_ylim()
         
-        axe.set_xlim(left=max(x_min, -5), right=min(x_max, 5))
-        axe.set_ylim(bottom=max(y_min, -5), top=min(y_max, 5))
+        axe.set_xlim(left=max(x_min, -15), right=min(x_max, 15))
+        axe.set_ylim(bottom=max(y_min, -15), top=min(y_max, 15))
         
         mplcursors.cursor(axe, hover=True)
         plt.gcf().set_size_inches(10, 5)  # Change the figure size
@@ -302,31 +313,32 @@ if __name__ == "__main__":
 
     ############### operaitng point analysis
     # # # Create a new circuit
-    circuit = Circuit('Captured Circuit from Image')
+    # circuit = Circuit('Captured Circuit from Image')
 
-    circuit.V(1, '1', '0', 10@u_V)
-    circuit.C(1, '0', '2', 1@u_uF)
-    circuit.R(1, '0', '3', 1@u_kΩ)
-    circuit.V(2, '4', '5', 10@u_V)
-    circuit.R(2, '0', '6', 1@u_kΩ)
-    circuit.L(1, '8', '7', 1@u_mH)
-    circuit.R(3, '2', '3', 1@u_kΩ)
-    circuit.L(2, '0', '3', 1@u_mH)
-    circuit.R(4, '4', '6', 1@u_kΩ)
-    circuit.R(5, '8', '5', 1@u_kΩ)
-    circuit.R(6, '1', '5', 1@u_kΩ)
-    circuit.R(7, '3', '7', 1@u_kΩ)
+    # circuit.V(1, '1', '0', 10@u_V)
+    # circuit.C(1, '0', '2', 1@u_uF)
+    # circuit.R(1, '0', '3', 1@u_kΩ)
+    # circuit.V(2, '4', '5', 10@u_V)
+    # circuit.R(2, '0', '6', 1@u_kΩ)
+    # circuit.L(1, '8', '7', 1@u_mH)
+    # circuit.R(3, '2', '3', 1@u_kΩ)
+    # circuit.L(2, '0', '3', 1@u_mH)
+    # circuit.R(4, '4', '6', 1@u_kΩ)
+    # circuit.R(5, '8', '5', 1@u_kΩ)
+    # circuit.R(6, '1', '5', 1@u_kΩ)
+    # circuit.R(7, '3', '7', 1@u_kΩ)
 
-    print(circuit)
+    # # print(circuit)
 
-       # analyzer = Analyzer(circuit)
+
+    # analyzer = Analyzer(circuit)
     # analyzer.operating_point()
     
     # v = analyzer.get_voltage(analysis=analysis, nodes_name=['5', '1'], show_plot=False)
     # if(v.shape[0] == 1):
     #     print(float(v))
 
-    # current = analyzer.get_current(analysis=analysis, element_name='V1', show_plot=False)
+    # current = analyzer.get_current(element_name='R4', show_plot=False)
     # if(current.shape[0] == 1):
     #     print(float(current))
 
@@ -337,7 +349,7 @@ if __name__ == "__main__":
 
     ####################### transient analysis
     # Create a new Circuit
-    circuit = Circuit('RC Circuit')
+    # circuit = Circuit('RC Circuit')
 
     # circuit.V(1, '1', '0', 10)  # DC Voltage Source: 5V between nodes 'in' and ground
     # circuit.R(1, '1', '2', 1e3)       # Resistor: 1 kOhm between 'in' and 'node1'
@@ -345,21 +357,35 @@ if __name__ == "__main__":
     # circuit.C(2, '3', '4', 2e-6)
     # circuit.R(2, '4', '0', 2e3)
 
-    circuit.V(1, '1', '0', 10)  # DC Voltage Source: 5V between nodes 'in' and ground
-    circuit.R(1, '1', '2', 1e3)       # Resistor: 1 kOhm between 'in' and 'node1'
-    circuit.C(1, '2', '0', 1e-6) # Capacitor: 1uF between 'node1' and ground
-    print(circuit)
+    # circuit.V(1, '1', '0', 10)  # DC Voltage Source: 5V between nodes 'in' and ground
+    # circuit.R(1, '1', '2', 1e3)       # Resistor: 1 kOhm between 'in' and 'node1'
+    # circuit.C(1, '2', '0', 1e-6) # Capacitor: 1uF between 'node1' and ground
+    # print(circuit)
 
-    analyzer = Analyzer(circuit)
+    # analyzer = Analyzer(circuit)
     # analyzer.transient_analysis(initial_conditions= [['C1', 3], ['C2', 8]] ,start_time=0, stop_time=1e-3, step_time=1e-6)
-    analyzer.transient_analysis(initial_conditions= [['C1', 3]] ,start_time=0, stop_time=20e-3, step_time=1e-6)
+    # analyzer.transient_analysis(initial_conditions= [['C1', 3]] ,start_time=0, stop_time=20e-3, step_time=1e-6)
 
-    analyzer.get_voltage(nodes_name=['1','2'], show_plot=True)
-    analyzer.get_current(element_name='V1', show_plot=True)
-    analyzer.get_power(element_name='C1', show_plot=True)
+    # analyzer.get_voltage(nodes_name=['1','2'], show_plot=True)
+    # analyzer.get_current(element_name='V1', show_plot=True)
+    # analyzer.get_power(element_name='C1', show_plot=True)
 
     # keep these codes at the end of the simulation to keep the plot open after the simulation is done
+   
+
+    circuit= Circuit("new ckt") 
+    circuit.V(1, '1','2', 10)
+    circuit.R(1, '2','0', 1000)
+    circuit.R(2, '0','1', 1000)
+    circuit.C(1, '0','1', 1e-6)
+    
+    analyzer = Analyzer(circuit)
+    analyzer.transient_analysis(initial_conditions= [['C1', 0]] , stop_time=10e-3, step_time=1e-6)
+    analyzer.get_voltage(nodes_name=['0','1'], show_plot=True)
+    analyzer.get_power(element_names=['R1', 'R2', 'C1'], show_plot=True)
+
     import matplotlib.pyplot as plt
     plt.show()
+
 
 

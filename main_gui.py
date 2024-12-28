@@ -5,15 +5,17 @@ the gui for running the program
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QFileDialog, QVBoxLayout, QPushButton, QHBoxLayout, QScrollArea, QTextEdit
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QImage, QFontDatabase, QFont
-from PyQt5.QtCore import Qt, QRect
+from PyQt5.QtCore import Qt, QRect, QThread
 from PyQt5 import QtCore
 import numpy as np
 
 from simulate import simulate_from_img
-from PyQt5.QtWidgets import QLineEdit
-
+from llm_ui import process_prompt
 
 class ImageLabel(QLabel): 
+    '''
+    class to show interactive overlays on top of the image 
+    '''
     def __init__(self, parent=None):
         super().__init__(parent)
         self.original_pixmap = None
@@ -26,9 +28,9 @@ class ImageLabel(QLabel):
         self.original_pixmap = pixmap
         super().setPixmap(pixmap)
 
-    def setOverlay(self, overlay_rect, component_name="", voltage_rect=None, voltage_text=""):
+    def setOverlay(self, overlay_rect, component_name="", voltage_rect=None, voltage_text="", element_name=""):
         self.overlay_rect = overlay_rect
-        self.component_name = component_name
+        self.component_name = f"{component_name}, {element_name}"
         self.voltage_rect = voltage_rect if voltage_rect else QRect()
         self.voltage_text = voltage_text
         self.repaint()  # Trigger a repaint to draw the overlay
@@ -62,10 +64,63 @@ class ImageLabel(QLabel):
             painter.end()
 
 
+
+class PlotThread(QThread):
+    def __init__(self, plt, axe):
+        super().__init__()
+        self.plt = plt
+        self.axe = axe
+
+    def run(self):
+        show_plot(self.plt, self.axe)
+
+def show_plot(plt, axe):
+    import mplcursors
+    from PyQt5.QtWidgets import QDialog, QVBoxLayout, QDialogButtonBox
+
+    plt.grid(True)
+    axe.axhline(0, color='black', linewidth=1, linestyle='--')
+    axe.axvline(0, color='black', linewidth=1, linestyle='--')
+    
+    # Dynamically set xlim and ylim
+    x_min, x_max = axe.get_xlim()
+    y_min, y_max = axe.get_ylim()
+    
+    axe.set_xlim(left=max(x_min, -15), right=min(x_max, 15))
+    axe.set_ylim(bottom=max(y_min, -15), top=min(y_max, 15))
+    
+    mplcursors.cursor(axe, hover=True)
+    plt.gcf().set_size_inches(10, 5)  # Change the figure size
+
+    # Create a new dialog window
+    dialog = QDialog()
+    dialog.setWindowTitle("Plot")
+    dialog.setMinimumSize(800, 600)
+
+    # Create a layout for the dialog
+    layout = QVBoxLayout(dialog)
+
+    # Create a canvas for the plot
+    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+    canvas = FigureCanvas(plt.gcf())
+    layout.addWidget(canvas)
+
+    # Add a button box for closing the dialog
+    button_box = QDialogButtonBox(QDialogButtonBox.Ok)
+    button_box.accepted.connect(dialog.accept)
+    layout.addWidget(button_box)
+
+    dialog.setLayout(layout)
+    dialog.exec_()
+    plt.clf()  # Clear the current figure
+
+
+
 class ImageMouseTrackerApp(QWidget):
     def __init__(self):
         super().__init__()
 
+        ############################ APP INTERFACE ###################################
         # Load the Roboto font
         QFontDatabase.addApplicationFont("./font/Roboto-Medium.ttf")
         self.setFont(QFont("Roboto"))
@@ -199,17 +254,31 @@ class ImageMouseTrackerApp(QWidget):
         self.original_pixmap = None
         self.scaled_pixmap_rect = QRect()
 
+        ################################### REQUIRED PROPERTIES #####################
         # Component mapping and bounding boxes
         self.component_mapping = {0: 'Capacitor(Unpolarized)', 1: 'Inductor', 2: 'Resistor', 3: 'VDC'}
         self.elec_comp_bbox = []
         self.comp_voltages = []
     
+        # necessary variables
+        self.ckt_netlist= None
+        self.analyzer = None
+        self.llm_model_path = "llm\models\llama-2-13b-chat.ggmlv3.q5_1.bin"
+        
+        #loads the llm model at the start of the program
+        from llm.llm_model import get_llm_model
+        bypass = True 
+        
+        if(bypass):
+            self.llm_model = None
+        else:
+            self.llm_model = get_llm_model(model_path=self.llm_model_path, show_execution_time=True)
+
 
 
     def scroll_to_bottom(self):
         # Ensure the scrollbar is at the bottom by default
         self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum())
-
 
     def set_chat_area_text(self, text, append=True):
         if append:
@@ -219,25 +288,10 @@ class ImageMouseTrackerApp(QWidget):
         else:
             self.display_area.setText(text)
 
-
-
-    def ask_circuit(self):
-        user_input = self.textbox.toPlainText()
-        if user_input:
-            show_text = f"\n\n► {user_input}"
-
-            ########## INTEGRATE LLM HERE #########
-            response = f"Processing your question..."
-            
-            show_text = show_text + "\n••• "+ response
-            self.set_chat_area_text(show_text)
-            self.textbox.clear()  # Clear the text area after processing the question
-        else:
-            self.set_chat_area_text("Please enter a question.")
-
-
-
     def eventFilter(self, source, event):
+        """
+        for detection of enter key pressed in the prompt input
+        """
         if event.type() == QtCore.QEvent.KeyPress and source is self.textbox:
             if event.key() == Qt.Key_Return and not (event.modifiers() & Qt.ShiftModifier):
                 self.ask_circuit()
@@ -246,7 +300,47 @@ class ImageMouseTrackerApp(QWidget):
 
 
 
+    def ask_circuit(self, prompt=None):
+
+        if(not prompt):
+            user_input = self.textbox.toPlainText()
+        else:
+            user_input = prompt
+
+        if user_input:
+            if(prompt):
+                show_text = f"\n\n►" # TODO: change variable name to text_to_disp 
+
+            else:
+                show_text = f"\n\n► {user_input}"
+
+            self.set_chat_area_text(show_text)
+
+            ########## INTEGRATE LLM HERE #########
+            response = process_prompt(prompt=user_input, llm_model=self.llm_model, ckt_netlist=self.ckt_netlist, analyzer=self.analyzer)
+            
+            # QApplication.processEvents()  
+            # QtCore.QThread.sleep(1)  
+
+            print(response)
+            if response['plt']!=None:
+                show_plot(response['plt'], response['axe'])
+            
+            response = response['non_exec_response']
+
+            #######################################
+            
+            show_text =  "\n••• "+ response
+
+            self.set_chat_area_text(show_text)
+            self.textbox.clear()  # Clear the text area after processing the question
+        else:
+            self.set_chat_area_text("\n••• Please enter a question.")
+
     def load_image(self):
+        """
+        load an image and perform netlist creation and initial simulation
+        """
         file_path, _ = QFileDialog.getOpenFileName(self, "Open Image File", "", "Images (*.png *.jpg *.jpeg *.bmp)")
                    
         # simulate for the given image path
@@ -258,8 +352,12 @@ class ImageMouseTrackerApp(QWidget):
             # self.set_chat_area_text("BRINGING LIFE TO CIRCUIT....")
 
             ################## SIMULATING #############################
-            self.elec_comp_bbox, self.comp_voltages, NODE_MAP, combined_img = simulate_from_img(file_path)
-            
+            # simulate
+            self.elec_comp_bbox, self.comp_voltages, combined_img, self.ckt_netlist, self.analyzer = simulate_from_img(file_path)
+            self.set_chat_area_text("Brought circuit to life!",append=False)
+            # send greeting as a circuit
+            self.ask_circuit("hello, greet me as a circuit ")
+            ###########################################################
 
             # Convert PIL Image to QPixmap
             combined_img_qt = combined_img.convert("RGBA")
@@ -272,15 +370,16 @@ class ImageMouseTrackerApp(QWidget):
                                                         Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.image_label.setPixmap(scaled_pixmap)
             self.scaled_pixmap_rect = QRect(0, 0, scaled_pixmap.width(), scaled_pixmap.height())
+            self.coord_label.setText("BROUGHT LIFE! HOVER TO FIND!")
+
         else:
             print("no file path was specified")
-
-
-        self.coord_label.setText("BROUGHT LIFE! HOVER TO FIND!")
-
-
+            self.coord_label.setText("no file path was specified")
 
     def mouseMoveEvent(self, event):
+        """
+        interactively show components information in the image area
+        """
         if self.image_label.pixmap():
             x = event.pos().x() - self.image_label.x()
             y = event.pos().y() - self.image_label.y()
@@ -292,10 +391,10 @@ class ImageMouseTrackerApp(QWidget):
 
                 # Iterate through component bounding boxes 
                 for comp, voltage in zip(self.elec_comp_bbox, self.comp_voltages):
-                    if(len(comp) == 6):
-                        comp_class, comp_x, comp_y, comp_w, comp_h, _ = comp
-                    else:
-                        comp_class, comp_x, comp_y, comp_w, comp_h= comp
+                    # if(len(comp) == 6):
+                    comp_class, comp_x, comp_y, comp_w, comp_h, orientation, el_name = comp
+                    # else:
+                    #     comp_class, comp_x, comp_y, comp_w, comp_h= comp
                     comp_name = self.component_mapping.get(comp_class, "Unknown")
                     voltage_value = voltage[1]  # Voltage value for the component
                     
@@ -325,13 +424,15 @@ class ImageMouseTrackerApp(QWidget):
 
                         # Update the overlay and voltage display
                         self.image_label.setOverlay(overlay_rect, component_name=comp_name, 
-                                                    voltage_rect=voltage_rect, voltage_text=voltage_text)
+                                                    voltage_rect=voltage_rect, voltage_text=voltage_text, element_name = el_name)
                         return
 
                 self.image_label.setOverlay(QRect())  # Clear overlay if outside any bbox
             else:
                 self.coord_label.setText("Mouse outside image bounds")
                 self.image_label.setOverlay(QRect())  # Clear overlay if outside range
+
+
 
 # Run the app
 app = QApplication(sys.argv)

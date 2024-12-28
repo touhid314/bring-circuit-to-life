@@ -2,11 +2,13 @@
 file to contain various utility functions and algorithms
 '''
 import numpy as np
-import cv2
+import cv2, math
 from PIL import Image
 
 
-# algorithms for image preprocessing and skeletonize image
+
+############### IMAGE PREPROCESSING FUNCTIONS #######################
+# TODO: improve the image preprocessing
 def img_preprocess(img, contrast_factor, sharpness_factor, show_enhanced_img:bool = False):
     '''
     args:
@@ -21,11 +23,18 @@ def img_preprocess(img, contrast_factor, sharpness_factor, show_enhanced_img:boo
     # contrast_factor = 2
     # sharpness_factor = 1
 
+    # Resize the image while maintaining the aspect ratio
+    original_width, original_height = img.size
+    aspect_ratio = original_height / original_width
+    new_width = 600
+    new_height = int(new_width * aspect_ratio)
+    img = img.resize((new_width, new_height), Image.LANCZOS)
+
 
     # increase contrast
     enhancer = ImageEnhance.Contrast(img)
     img_enhanced = enhancer.enhance(contrast_factor)
-    
+
     # Increase sharpness 
     sharpness_enhancer = ImageEnhance.Sharpness(img_enhanced) 
     img_enhanced = sharpness_enhancer.enhance(sharpness_factor)    
@@ -36,6 +45,8 @@ def img_preprocess(img, contrast_factor, sharpness_factor, show_enhanced_img:boo
     return img_enhanced
 
 
+
+############### SKELETONIZE IMAGE ###################################
 def skeletonize_ckt(image: Image.Image, kernel_size:int, show_skeleton_ckt: bool) -> np.ndarray:
     '''
     arg: 
@@ -69,9 +80,6 @@ def skeletonize_ckt(image: Image.Image, kernel_size:int, show_skeleton_ckt: bool
     segmented_ckt = np.array(segmented_image)
     segmented_ckt = (segmented_ckt > 0).astype(np.uint8)
 
-    # # find skeleton
-    # skeleton = skeletonize_image(segmented_ckt)
-
     # Ensure the image is binary (0 or 1 values)
     binary_image = (segmented_ckt > 0).astype(np.uint8)
 
@@ -82,13 +90,7 @@ def skeletonize_ckt(image: Image.Image, kernel_size:int, show_skeleton_ckt: bool
     skeleton = skeleton * 255
     skeleton = (skeleton > 0).astype(np.uint8)
 
-    if show_skeleton_ckt: 
-        # import matplotlib.pyplot as plt
-        
-        # plt.imshow(skeleton, cmap='gray') 
-        # plt.title('Skeletonized Circuit') 
-        # plt.axis('off') # Hide axes 
-        
+    if show_skeleton_ckt:         
         pil_image = Image.fromarray(skeleton * 255) 
         pil_image.show()
 
@@ -96,11 +98,7 @@ def skeletonize_ckt(image: Image.Image, kernel_size:int, show_skeleton_ckt: bool
 
 
 
-
-
-# algorithm to find out the connections between the components and assign nodes.
-
-## necessary function
+############## INITIAL NODE ASSIGNMENT TO COMPONENTS ################  
 def get_bounding_box_edge_pixels(xywh, img_w, img_h):
     """
     Returns separate arrays of (x, y) coordinates representing the top, left, right, 
@@ -140,7 +138,6 @@ def get_bounding_box_edge_pixels(xywh, img_w, img_h):
 
     return top_edge, left_edge, right_edge, bottom_edge
 
-## main algo
 def get_COMPONENTS(skeleton_ckt, comp_bbox):
     '''
     algorithm to find out the connections between the components and assign nodes.
@@ -233,11 +230,10 @@ def get_COMPONENTS(skeleton_ckt, comp_bbox):
 
 
 
-
-
-# algorithm to find the connections between components and hence reduce the node counts in terms of connection.
-
-## necessary functions
+######## VIRAL SPREAD ALGORITHM - A RECURSIVE ALGORITHM TO FIND NODAL CONNECTION BETWEEN COMPONENTS IN A CKT IMAGE #######
+# TODO: further optimize the algorithm
+ 
+# helper functions
 def remove_duplicates(array):
     for row in array:
         # if the duplicate 
@@ -248,8 +244,6 @@ def remove_duplicates(array):
         # row[1].sort(reverse=True)  # Use reverse=False for ascending order if needed
         # the order of nodes, cannot be changed, this will harm the component polarity detection
     return array
-
-
 
 def modify_list(list1, list2):
     """
@@ -293,8 +287,6 @@ def modify_list(list1, list2):
         list2.pop(idx)
 
     return list1, list2
-
-
 
 def update_nodes(all_connected_nodes: list, NODE_MAP:np.ndarray, COMPONENTS:np.ndarray) -> None:
     flattened_list = [element for row in all_connected_nodes for element in row]
@@ -344,11 +336,8 @@ def update_nodes(all_connected_nodes: list, NODE_MAP:np.ndarray, COMPONENTS:np.n
                     a = NODE_MAP[i, j]
                     NODE_MAP[i, j] = row_numbers[flattened_list.index(a)]
 
-import numpy as np
-import math
-
+# main algo
 connected_nodes = []
-
 def viral_spread(x: int, y: int, NODE_MAP: np.ndarray, binary_img: np.ndarray, all_connected_nodes: list):
     """
     Spreads the value of the main node to neighboring points based on specific conditions.
@@ -410,9 +399,6 @@ def viral_spread(x: int, y: int, NODE_MAP: np.ndarray, binary_img: np.ndarray, a
                     else:
                         continue
 
-
-
-## main algo
 def reduce_nodes(skeleton_ckt: np.ndarray, comp_bbox: list[list[float]], NODE_MAP: np.ndarray, COMPONENTS: np.ndarray, all_start_points: list):
     '''
     algorithm to find the connections between components and hence reduce the node counts in terms of connection.
@@ -510,8 +496,7 @@ def reduce_nodes(skeleton_ckt: np.ndarray, comp_bbox: list[list[float]], NODE_MA
 
 
 
-# trash functions
-
+############################ trash functions #######################
 def is_same_wire(pix1: tuple, pix2: tuple, ckt_img) -> bool:
     '''
     input: 2 tuples representing 2 pixels

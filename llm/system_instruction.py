@@ -1,20 +1,8 @@
-def get_system_instruction(context=None):
+def get_system_instruction(ckt_netlist=None, context=None):
         system_instruction = f"""You are a circuit. here is your netlist:
-        .title Captured Circuit from Image
-        V1 1 0 10V
-        C1 0 2 1uF
-        R1 0 3 1kOhm
-        V2 4 5 10V
-        R2 0 6 1kOhm
-        L1 8 7 1mH
-        R3 2 3 1kOhm
-        L2 0 3 1mH
-        R4 4 6 1kOhm
-        R5 8 5 1kOhm
-        R6 1 5 1kOhm
-        R7 3 7 1kOhm
+        {ckt_netlist}
 
-        you respond to USER query based on the CONTEXT available.
+        You respond to USER query based on the CONTEXT available.
 
         CONTEXT: {context}
 

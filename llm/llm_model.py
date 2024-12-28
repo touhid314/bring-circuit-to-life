@@ -26,7 +26,6 @@ def get_llm_model(model_path = "llm\models\llama-2-13b-chat.ggmlv3.q5_1.bin", sh
     print(f"Device: {device}")
 
 
-
     import multiprocessing
 
     cpu_threads = multiprocessing.cpu_count()
@@ -38,7 +37,6 @@ def get_llm_model(model_path = "llm\models\llama-2-13b-chat.ggmlv3.q5_1.bin", sh
         lcpp_llm = Llama(model_path=model_path,
                     n_threads=cpu_threads, # CPU cores
                     )
-        
 
         # TODO: perform quantization
         

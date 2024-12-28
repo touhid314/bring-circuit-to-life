@@ -36,7 +36,7 @@ def process_and_show_node_map(node_map: np.ndarray, ckt_img: Image.Image):
 
     # Assign green color to non-negative values
     non_negative_mask = processed_map >= 0  # Non-negative values
-    dilation_kernel_size = 15
+    dilation_kernel_size = 5
     dilated_mask = binary_dilation(non_negative_mask, structure=np.ones((dilation_kernel_size, dilation_kernel_size)))  # Apply dilation
     colored_map[dilated_mask] = (0, 255, 0)  # Green for non-negative values
 
@@ -46,7 +46,7 @@ def process_and_show_node_map(node_map: np.ndarray, ckt_img: Image.Image):
     # Annotate node names
     draw = ImageDraw.Draw(node_map_img)
     try:
-        font = ImageFont.truetype("arial.ttf", size=70)  # Load a font
+        font = ImageFont.truetype("arial.ttf", size=50)  # Load a font
     except IOError:
         font = ImageFont.load_default()  # Fallback to default font if "arial.ttf" is not found
 
@@ -54,7 +54,7 @@ def process_and_show_node_map(node_map: np.ndarray, ckt_img: Image.Image):
     for value in unique_values:
         if value >= 0:
             y, x = np.argwhere(processed_map == value)[0]  # Get the first occurrence of the node
-            draw.text((x+10, y+10), str(int(value)), fill="white", font=font)
+            draw.text((x+2, y+2), str(int(value)), fill="white", font=font)
 
     # Resize the node map to match the circuit image size
     node_map_img_resized = node_map_img.resize(ckt_img.size, resample=Image.BILINEAR)
@@ -93,8 +93,8 @@ def simulate_from_img(path: str):
 
     from my_utils import img_preprocess, skeletonize_ckt
     ckt_img_enhanced = img_preprocess(ckt_img, contrast_factor=3, sharpness_factor=1, show_enhanced_img=False)
-    skeleton_ckt = skeletonize_ckt(ckt_img_enhanced, kernel_size=7,show_skeleton_ckt=False)
-
+    skeleton_ckt = skeletonize_ckt(ckt_img_enhanced, kernel_size=3,show_skeleton_ckt=False)
+    ############################################################################################
     
     end_time = time.time()  # Record the end time
     print(f">>>>>> Execution time for skeletonize : {end_time - start_time:.4f} seconds")
@@ -108,6 +108,7 @@ def simulate_from_img(path: str):
     print(f">>>>>> Execution time for all models: {end_time - start_time:.4f} seconds")
 
     ## only keeping the electrical COMPONENTS in the ckt skeleton image
+    # electrical_component_bbox = [[comp_class, x, y, w, h, comp_orientation, comp_name], [....], .....] 
     electrical_component_bbox = comp_bbox.copy()
 
     for index, row in enumerate(electrical_component_bbox):
@@ -151,14 +152,25 @@ def simulate_from_img(path: str):
 
     combined_img = process_and_show_node_map(NODE_MAP, ckt_img)
 
-    return electrical_component_bbox, comp_voltages, NODE_MAP, combined_img
+    # create ckt_netlist and add component names in the electrical_component_bbox list
+    ckt_netlist_str = str(circuit)
+
+    ckt_netlist = str(circuit).split('\r\n')
+
+    for i, line in enumerate(ckt_netlist[1:]):  # Skip the title line
+        if line:  # Ensure the line is not empty
+            component_name = line.split()[0]
+            electrical_component_bbox[i].append(component_name)
+
+    return electrical_component_bbox, comp_voltages, combined_img, ckt_netlist_str, analyzer
 
 
 if __name__ == "__main__":
     # path = r"ckt5.jpg"
     # path = r"C:\Users\Touhid2\Desktop\50_jpg.rf.dfa9222529f42fb211b7fd65119dddf3.jpg"
     # path = r"ckt1.jpeg"
-    path = r"ckt6.jpg"
-    bbox, volts, _ , _ = simulate_from_img(path)
+    path = r"ckt10.png"
+    simulate_from_img(path)
 
-    print("----------simulation result:", bbox, volts)
+    print('done simulation')
+    # print("----------simulation result:", bbox, volts)
